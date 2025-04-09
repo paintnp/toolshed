@@ -1,21 +1,31 @@
 # ToolShed
 
-An application for discovering, testing, and utilizing MCP Servers in a secure environment.
+A platform for managing and using various AI tools and agents.
 
-## Setup
+## Features
 
-1. Clone the repository
-2. Install dependencies:
+### MCP Server Discovery and Verification
 
-```bash
-npm install
-```
+ToolShed includes a comprehensive system for discovering, cataloging, and verifying MCP (Model Context Protocol) servers:
 
-3. Run the development server:
+1. **GitHub Crawler**
+   - Automatically discovers MCP server repositories on GitHub
+   - Searches by topics, repository names, and descriptions
+   - Extracts metadata like language, stars, and topics
+   - [Learn more about the crawler](lib/github/README.md)
 
-```bash
-npm run dev
-```
+2. **Server Verification**
+   - Verifies discovered MCP servers by checking their functionality
+   - Lists and catalogs available tools from each server
+   - Runs sample tools to confirm they work correctly
+   - Supports both public endpoints and container-based verification
+   - [Learn more about verification](lib/verification/README.md)
+
+3. **AWS Fargate Integration**
+   - Runs MCP servers in isolated containers for testing
+   - Supports both public and private subnet configurations
+   - Provides options for direct access or load balancer routing
+   - [Learn more about Fargate integration](#aws-fargate-integration)
 
 ## AWS Fargate Integration
 
@@ -64,6 +74,12 @@ The execution role requires these permissions:
 
 - For direct public access: Public subnets with auto-assign public IP enabled
 - For ALB access: Private subnets are sufficient, but ALB needs to be in public subnets
+
+## Development
+
+```bash
+npm run dev
+```
 
 ## Features
 

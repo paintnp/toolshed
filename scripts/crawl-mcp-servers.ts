@@ -1,6 +1,10 @@
 #!/usr/bin/env ts-node
 
 import { crawlMCPServers, logCrawlerResults } from '../lib/github/crawler';
+import dotenv from 'dotenv';
+
+// Load environment variables
+dotenv.config({ path: '.env.local' });
 
 async function main() {
   try {
@@ -13,15 +17,15 @@ async function main() {
     console.log(`Query: ${query || 'Default (topic:mcp)'}`);
     console.log(`Max Results: ${maxResults || 'Default (100)'}\n`);
     
-    // Crawl GitHub repositories
-    const results = await crawlMCPServers(query, maxResults);
+    // Crawl GitHub repositories and save to DynamoDB
+    const saveToDb = true; // Enable saving to DynamoDB
+    const results = await crawlMCPServers(query, maxResults, saveToDb);
     
     // Log results
     logCrawlerResults(results);
     
-    // In the future, this is where we would save to DynamoDB
     console.log('\nCrawling completed.');
-    console.log('Note: Data is not being saved to a database yet.');
+    console.log(`Discovered ${results.found} MCP servers and saved them to DynamoDB.`);
   } catch (error) {
     console.error('Error running crawler:', error);
     process.exit(1);

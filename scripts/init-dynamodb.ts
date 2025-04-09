@@ -4,7 +4,10 @@ import {
   DynamoDBClient, 
   CreateTableCommand,
   DescribeTableCommand,
-  ResourceNotFoundException 
+  ResourceNotFoundException,
+  ScalarAttributeType,
+  KeyType,
+  BillingMode
 } from "@aws-sdk/client-dynamodb";
 import dotenv from 'dotenv';
 
@@ -46,16 +49,16 @@ async function createTable() {
       AttributeDefinitions: [
         {
           AttributeName: "ServerId",
-          AttributeType: "S"
+          AttributeType: ScalarAttributeType.S
         }
       ],
       KeySchema: [
         {
           AttributeName: "ServerId",
-          KeyType: "HASH"
+          KeyType: KeyType.HASH
         }
       ],
-      BillingMode: "PAY_PER_REQUEST"
+      BillingMode: BillingMode.PAY_PER_REQUEST
     };
     
     const result = await ddbClient.send(new CreateTableCommand(createParams));

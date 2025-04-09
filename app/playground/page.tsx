@@ -54,7 +54,9 @@ export default function Playground() {
       
       async function fetchServerDetails() {
         try {
-          const response = await fetch(`/api/servers/${serverId}`);
+          // Ensure server ID is properly URL encoded
+          const encodedServerId = encodeURIComponent(serverId);
+          const response = await fetch(`/api/servers/${encodedServerId}`);
           
           if (!response.ok) {
             if (response.status === 404) {
@@ -97,7 +99,7 @@ export default function Playground() {
 
   const handleServerChange = (serverId: string) => {
     // Update the URL to include the selected server
-    router.push(`/playground?server=${serverId}`);
+    router.push(`/playground?server=${encodeURIComponent(serverId)}`);
   };
 
   const handleToolChange = (toolName: string) => {
@@ -140,12 +142,18 @@ export default function Playground() {
   const handleRunTool = async () => {
     if (!validateParameters() || !selectedServer) return;
     
+    // Check if server has tools
+    if (!selectedServer.tools || !selectedTool) {
+      setError("No tools available for this server");
+      return;
+    }
+    
     setIsLoading(true);
     setError("");
     setResults("");
 
     try {
-      const response = await fetch(`/api/servers/${selectedServer.id}/execute`, {
+      const response = await fetch(`/api/servers/${encodeURIComponent(selectedServer.ServerId)}/execute`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -195,8 +203,8 @@ export default function Playground() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
               {allServers.map((server: any) => (
                 <button 
-                  key={server.id} 
-                  onClick={() => handleServerChange(server.id)}
+                  key={server.ServerId} 
+                  onClick={() => handleServerChange(server.ServerId)}
                   className="text-left"
                 >
                   <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors">
@@ -222,25 +230,33 @@ export default function Playground() {
               <div className="mt-6">
                 <h3 className="text-sm font-medium text-gray-500 mb-2">Available Tools</h3>
                 <ul className="space-y-1">
-                  {selectedServer.tools.map((tool: any) => (
-                    <li key={tool.name}>
-                      <button
-                        onClick={() => handleToolChange(tool.name)}
-                        className={`w-full text-left px-3 py-2 rounded text-sm ${
-                          selectedTool === tool.name 
-                            ? "bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-200 font-medium" 
-                            : "hover:bg-gray-100 dark:hover:bg-gray-700/50"
-                        }`}
-                      >
-                        {tool.name}
-                      </button>
+                  {selectedServer.tools && selectedServer.tools.length > 0 ? (
+                    selectedServer.tools.map((tool: any) => (
+                      <li key={tool.name}>
+                        <button
+                          onClick={() => handleToolChange(tool.name)}
+                          className={`w-full text-left px-3 py-2 rounded text-sm ${
+                            selectedTool === tool.name 
+                              ? "bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-200 font-medium" 
+                              : "hover:bg-gray-100 dark:hover:bg-gray-700/50"
+                          }`}
+                        >
+                          {tool.name}
+                        </button>
+                      </li>
+                    ))
+                  ) : (
+                    <li>
+                      <div className="px-3 py-2 text-sm text-gray-500">
+                        No tools available
+                      </div>
                     </li>
-                  ))}
+                  )}
                 </ul>
               </div>
               
               <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
-                <Link href={`/servers/${selectedServer.id}`}>
+                <Link href={`/servers/${encodeURIComponent(selectedServer.ServerId)}`}>
                   <Button variant="outline" size="sm" className="w-full">
                     View Server Details
                   </Button>
@@ -250,7 +266,7 @@ export default function Playground() {
             
             {/* Main Playground Area */}
             <div className="md:col-span-3 bg-white dark:bg-slate-800 rounded-lg shadow p-6">
-              {selectedTool ? (
+              {selectedTool && selectedServer.tools ? (
                 <>
                   <div className="mb-6">
                     <h2 className="text-xl font-bold mb-2">
@@ -313,7 +329,11 @@ export default function Playground() {
                 </>
               ) : (
                 <div className="text-center py-12">
-                  <p className="text-gray-500">Select a tool from the sidebar to begin</p>
+                  <p className="text-gray-500">
+                    {!selectedServer.tools || selectedServer.tools.length === 0 
+                      ? "This server has no available tools."
+                      : "Select a tool from the sidebar to begin"}
+                  </p>
                 </div>
               )}
             </div>

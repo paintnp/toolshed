@@ -37,8 +37,8 @@ export default async function ServersPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {servers.map((server: any) => (
             <Link 
-              href={`/servers/${server.id}`} 
-              key={server.id}
+              href={`/servers/${encodeURIComponent(server.ServerId)}`} 
+              key={server.ServerId}
               className="block hover:scale-[1.02] transition-transform"
             >
               <div className="bg-white dark:bg-slate-800 rounded-lg shadow p-6 h-full border border-transparent hover:border-primary">
@@ -49,7 +49,7 @@ export default async function ServersPage() {
                     {server.language}
                   </span>
                   <div className="flex gap-1">
-                    {server.tags && server.tags.slice(0, 2).map((tag: string) => (
+                    {server.topics && server.topics.slice(0, 2).map((tag: string) => (
                       <span 
                         key={tag} 
                         className="inline-flex items-center rounded-md bg-gray-50 dark:bg-gray-700 px-2 py-1 text-xs font-medium text-gray-600 dark:text-gray-300"

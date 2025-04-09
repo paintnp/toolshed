@@ -198,7 +198,7 @@ function convertToServerRecord(repo: MCPRepository): ServerRecord {
     name: repo.name,
     fullName: repo.fullName,
     description: repo.description || '',
-    language: repo.language,
+    language: repo.language || undefined,
     url: repo.url,
     stars: repo.stars,
     forks: repo.forks,

@@ -13,6 +13,7 @@
     "@aws-sdk/client-ecr": "^3.782.0",
     "@aws-sdk/client-ecs": "^3.782.0",
     "@aws-sdk/client-elastic-load-balancing-v2": "^3.782.0",
+    "@octokit/rest": "^21.1.1",
     "@radix-ui/react-slot": "^1.2.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

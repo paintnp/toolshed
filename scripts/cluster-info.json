@@ -1,0 +1,23 @@
+{
+    "cluster": {
+        "clusterArn": "arn:aws:ecs:us-east-1:277502524328:cluster/ToolShedCluster",
+        "clusterName": "ToolShedCluster",
+        "status": "ACTIVE",
+        "registeredContainerInstancesCount": 0,
+        "runningTasksCount": 0,
+        "pendingTasksCount": 0,
+        "activeServicesCount": 0,
+        "statistics": [],
+        "tags": [],
+        "settings": [
+            {
+                "name": "containerInsights",
+                "value": "disabled"
+            }
+        ],
+        "capacityProviders": [
+            "FARGATE"
+        ],
+        "defaultCapacityProviderStrategy": []
+    }
+}

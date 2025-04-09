@@ -1,24 +1,80 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ToolShed
 
-## Getting Started
+An application for discovering, testing, and utilizing MCP Servers in a secure environment.
 
-First, run the development server:
+## Setup
+
+1. Clone the repository
+2. Install dependencies:
+
+```bash
+npm install
+```
+
+3. Run the development server:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## AWS Fargate Integration
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+The application includes integration with AWS Fargate for running MCP servers in isolated containers. These containers can be made accessible in two ways:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### 1. Direct Public IP Access (Requires Public Subnets)
+
+If your AWS subnets are configured with "Auto-assign public IPv4 address" enabled, Fargate tasks will get public IPs and be directly accessible.
+
+### 2. Application Load Balancer (Recommended for Production)
+
+For a more robust setup, use an Application Load Balancer to expose the containers:
+
+1. Set the following environment variables in `.env.local`:
+   ```
+   AWS_VPC_ID=vpc-xxxxxxxxxxxxxxxxx
+   AWS_SUBNETS=subnet-xxxxxxxxxxxxxxxxx,subnet-yyyyyyyyyyyyyyyyy
+   AWS_SECURITY_GROUPS=sg-xxxxxxxxxxxxxxxxx
+   AWS_LOAD_BALANCER_NAME=mcp-server-lb
+   AWS_TARGET_GROUP_NAME=mcp-server-targets
+   AWS_EXECUTION_ROLE_ARN=arn:aws:iam::xxxxxxxxxxxx:role/YourExecutionRole
+   ```
+
+2. Run the load balancer test:
+   ```
+   npx ts-node -P scripts/tsconfig.json scripts/test-load-balancer.ts
+   ```
+
+3. Access your MCP server at the load balancer's DNS name.
+
+The load balancer will automatically route traffic to your Fargate containers even if they only have private IP addresses.
+
+## Required AWS IAM Permissions
+
+The execution role requires these permissions:
+- `ecs:RunTask`
+- `ecs:DescribeTasks`  
+- `ecs:StopTask`
+- `ecs:RegisterTaskDefinition`
+- `logs:CreateLogGroup`
+- `logs:CreateLogStream`
+- `logs:PutLogEvents`
+- `elasticloadbalancing:*` (for ALB integration)
+
+## Networking Requirements
+
+- For direct public access: Public subnets with auto-assign public IP enabled
+- For ALB access: Private subnets are sufficient, but ALB needs to be in public subnets
+
+## Features
+
+- Search for MCP servers
+- View detailed information about servers and their tools
+- Execute tools securely in AWS Fargate containers
+- API access for programmatic interaction
+
+## License
+
+MIT
 
 ## Learn More
 

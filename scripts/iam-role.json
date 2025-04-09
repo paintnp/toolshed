@@ -1,0 +1,21 @@
+{
+    "Role": {
+        "Path": "/",
+        "RoleName": "ToolShedFargateExecutionRole",
+        "RoleId": "AROAUBHDQPOUBQA6LJB64",
+        "Arn": "arn:aws:iam::277502524328:role/ToolShedFargateExecutionRole",
+        "CreateDate": "2025-04-09T03:00:55+00:00",
+        "AssumeRolePolicyDocument": {
+            "Version": "2012-10-17",
+            "Statement": [
+                {
+                    "Effect": "Allow",
+                    "Principal": {
+                        "Service": "ecs-tasks.amazonaws.com"
+                    },
+                    "Action": "sts:AssumeRole"
+                }
+            ]
+        }
+    }
+}

@@ -1,7 +1,18 @@
+'use client';
+
 import { Navigation } from "@/components/Navigation";
 import { SearchBar } from "@/components/SearchBar";
+import { AddMCPServerDialog } from "../components/AddMCPServerDialog";
+import { useRouter } from "next/navigation";
 
 export default function Home() {
+  const router = useRouter();
+  
+  const handleAddSuccess = () => {
+    // Navigate to servers page after successful add
+    router.push('/servers');
+  };
+  
   return (
     <div className="flex flex-col min-h-screen bg-slate-100 dark:bg-slate-900">
       <Navigation />
@@ -16,6 +27,10 @@ export default function Home() {
           
           <div className="w-full flex justify-center mt-8">
             <SearchBar />
+          </div>
+          
+          <div className="flex justify-center mt-4">
+            <AddMCPServerDialog onSuccess={handleAddSuccess} />
           </div>
         </div>
       </main>

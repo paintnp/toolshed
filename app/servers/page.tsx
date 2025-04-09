@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Navigation } from "@/components/Navigation";
+import { ServersPageActions } from "@/components/ServersPageActions";
 
 // This function will fetch data from our API route
 async function getServers() {
@@ -24,15 +25,7 @@ export default async function ServersPage() {
     <div className="flex flex-col min-h-screen bg-slate-100 dark:bg-slate-900">
       <Navigation />
       <main className="flex-1 container mx-auto p-6">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold">All MCP Servers</h1>
-          <Link 
-            href="/search" 
-            className="text-blue-600 dark:text-blue-400 hover:underline"
-          >
-            Search Servers
-          </Link>
-        </div>
+        <ServersPageActions />
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {servers.map((server: any) => (
@@ -46,7 +39,7 @@ export default async function ServersPage() {
                 <p className="text-gray-600 dark:text-gray-300 mb-3">{server.description}</p>
                 <div className="flex items-center justify-between">
                   <span className="inline-flex items-center rounded-md bg-blue-50 dark:bg-blue-900/30 px-2 py-1 text-xs font-medium text-blue-700 dark:text-blue-300">
-                    {server.language}
+                    {server.language || 'Unknown'}
                   </span>
                   <div className="flex gap-1">
                     {server.topics && server.topics.slice(0, 2).map((tag: string) => (

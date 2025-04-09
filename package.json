@@ -16,6 +16,7 @@
     "@aws-sdk/client-elastic-load-balancing-v2": "^3.782.0",
     "@aws-sdk/lib-dynamodb": "^3.782.0",
     "@octokit/rest": "^21.1.1",
+    "@radix-ui/react-dialog": "^1.1.7",
     "@radix-ui/react-slot": "^1.2.0",
     "axios": "^1.8.4",
     "class-variance-authority": "^0.7.1",

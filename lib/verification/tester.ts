@@ -6,6 +6,7 @@ import {
   getServer, 
   ServerRecord 
 } from '../db/dynamodb';
+import { Octokit } from '@octokit/rest';
 
 // Repository server metadata interface
 export interface MCPRepository {
@@ -47,6 +48,12 @@ const KNOWN_IMAGES: Record<string, string> = {
   // Add more mappings as needed
   '_default_': 'ghcr.io/mcp-community/reference-server' // Fallback image
 };
+
+// GitHub API client configuration
+const octokit = new Octokit({
+  auth: process.env.GITHUB_TOKEN,
+  userAgent: 'ToolShed-MCP-Verifier',
+});
 
 /**
  * Get Docker image for a repository
@@ -541,4 +548,106 @@ export async function verifyServers(
   
   console.log(`Completed verification of ${servers.length} MCP servers.`);
   return verifiedServers;
+}
+
+/**
+ * Manually verify an MCP server from a GitHub repository name
+ * This function adapts the manual verification flow to use the existing verification pipeline
+ * 
+ * @param {string} repoFullName - Repository full name (e.g., "owner/repo")
+ * @returns {Promise<{verified: boolean, repoFullName: string, message?: string, details?: any}>}
+ */
+export async function verifyMCPServerFromGitHub(repoFullName: string): Promise<{
+  verified: boolean;
+  repoFullName: string;
+  message?: string;
+  details?: any;
+}> {
+  try {
+    // Check if server already exists and is verified
+    const existingServer = await getServer(repoFullName);
+    if (existingServer && existingServer.verified) {
+      return {
+        verified: true,
+        repoFullName,
+        message: 'Server already verified',
+        details: existingServer
+      };
+    }
+
+    // Step 1: Fetch repository info from GitHub
+    const [owner, repo] = repoFullName.split('/');
+    
+    if (!owner || !repo) {
+      return {
+        verified: false,
+        repoFullName,
+        message: 'Invalid repository name format. Expected "owner/repo"'
+      };
+    }
+    
+    try {
+      const repoResponse = await octokit.repos.get({
+        owner,
+        repo,
+      });
+      
+      if (!repoResponse.data) {
+        return {
+          verified: false,
+          repoFullName,
+          message: 'Repository not found'
+        };
+      }
+      
+      const repoData = repoResponse.data;
+      
+      // Fetch repository topics
+      const topicsResponse = await octokit.repos.getAllTopics({
+        owner,
+        repo,
+      });
+      
+      // Create repository metadata object
+      const repoMetadata: MCPRepository = {
+        id: repoFullName,
+        name: repoData.name,
+        fullName: repoFullName,
+        description: repoData.description,
+        language: repoData.language,
+        url: repoData.html_url,
+        stars: repoData.stargazers_count,
+        forks: repoData.forks_count,
+        topics: topicsResponse.data.names || [],
+        lastUpdated: repoData.updated_at,
+        discoveredAt: Date.now(),
+        verified: false
+      };
+      
+      // Step 2: Verify the server using our existing pipeline
+      console.log(`Verifying manually added server: ${repoFullName}`);
+      const verificationResult = await verifyServer(repoMetadata, true);
+      
+      return {
+        verified: verificationResult.verified,
+        repoFullName,
+        message: verificationResult.status,
+        details: verificationResult
+      };
+    } catch (error) {
+      console.error(`Error fetching repository data: ${error}`);
+      return {
+        verified: false,
+        repoFullName,
+        message: `Repository error: ${error instanceof Error ? error.message : String(error)}`
+      };
+    }
+  } catch (error) {
+    console.error(`Error in verification pipeline: ${error}`);
+    return {
+      verified: false,
+      repoFullName,
+      message: `Verification error: ${error instanceof Error ? error.message : String(error)}`
+    };
+  }
 } 

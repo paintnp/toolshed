@@ -1,5 +1,6 @@
 import { Octokit } from '@octokit/rest';
 import dotenv from 'dotenv';
+import { saveServer, ServerRecord, getServerByFullName } from '../db/dynamodb';
 
 // Load environment variables
 dotenv.config({ path: '.env.local' });
@@ -11,7 +12,7 @@ const octokit = new Octokit({
 });
 
 // Repository metadata interface
-interface MCPRepository {
+export interface MCPRepository {
   id: string;
   name: string;
   fullName: string;
@@ -24,6 +25,15 @@ interface MCPRepository {
   lastUpdated: string;
   discoveredAt: number;
   verified: boolean;
+  // Verification fields
+  endpoint?: string;
+  toolCount?: number;
+  sampleTool?: string;
+  sampleOutput?: string;
+  sampleRunSuccess?: boolean;
+  lastTested?: string;
+  status?: string;
+  taskArn?: string;
 }
 
 /**
@@ -31,11 +41,13 @@ interface MCPRepository {
  * 
  * @param {string} query - Search query (e.g., 'topic:mcp')
  * @param {number} [maxResults=100] - Maximum number of results to return
+ * @param {boolean} [saveToDb=true] - Whether to save results to DynamoDB
  * @returns {Promise<MCPRepository[]>} Array of repository metadata
  */
 export async function searchMCPRepositories(
   query: string = 'topic:mcp',
-  maxResults: number = 100
+  maxResults: number = 100,
+  saveToDb: boolean = true
 ): Promise<MCPRepository[]> {
   console.log(`Searching GitHub for repositories with query: ${query}`);
   
@@ -85,6 +97,60 @@ export async function searchMCPRepositories(
         // Apply filters if needed
         if (filterRepository(repoData)) {
           repositories.push(repoData);
+          
+          // Save to DynamoDB if enabled
+          if (saveToDb) {
+            try {
+              // Check if server already exists
+              const existingServer = await getServerByFullName(repoData.fullName);
+              
+              if (existingServer) {
+                // Don't overwrite verification data if it exists
+                const serverRecord: ServerRecord = {
+                  ServerId: repoData.fullName,
+                  name: repoData.name,
+                  fullName: repoData.fullName,
+                  description: repoData.description || '',
+                  language: repoData.language,
+                  url: repoData.url,
+                  stars: repoData.stars,
+                  forks: repoData.forks,
+                  topics: repoData.topics,
+                  lastUpdated: repo.updated_at,
+                  discoveredAt: existingServer.discoveredAt || Date.now(),
+                  verified: existingServer.verified || false,
+                  toolCount: existingServer.toolCount,
+                  tools: existingServer.tools,
+                  lastTested: existingServer.lastTested,
+                  status: existingServer.status,
+                  endpoint: existingServer.endpoint
+                };
+                
+                await saveServer(serverRecord);
+                console.log(`Updated existing server ${repoData.fullName} in DynamoDB`);
+              } else {
+                // Create new server record
+                const serverRecord: ServerRecord = {
+                  ServerId: repoData.fullName,
+                  name: repoData.name,
+                  fullName: repoData.fullName,
+                  description: repoData.description || '',
+                  language: repoData.language,
+                  url: repoData.url,
+                  stars: repoData.stars,
+                  forks: repoData.forks,
+                  topics: repoData.topics,
+                  discoveredAt: Date.now(),
+                  verified: false
+                };
+                
+                await saveServer(serverRecord);
+                console.log(`Saved new server ${repoData.fullName} to DynamoDB`);
+              }
+            } catch (dbError) {
+              console.error(`Error saving repository ${repoData.fullName} to DynamoDB:`, dbError);
+            }
+          }
         }
         
         // Stop if we reached the maximum results
@@ -138,11 +204,13 @@ function filterRepository(repo: MCPRepository): boolean {
  * 
  * @param {string} [query] - Custom search query (default: 'topic:mcp')
  * @param {number} [maxResults] - Maximum number of results (default: 100)
+ * @param {boolean} [saveToDb=true] - Whether to save results to DynamoDB
  * @returns {Promise<{found: number, repositories: MCPRepository[]}>}
  */
 export async function crawlMCPServers(
   query?: string,
-  maxResults?: number
+  maxResults?: number,
+  saveToDb: boolean = true
 ): Promise<{found: number, repositories: MCPRepository[]}> {
   // Define search queries
   const defaultQueries = [
@@ -153,7 +221,7 @@ export async function crawlMCPServers(
   const searchQuery = query || defaultQueries.join(' OR ');
   
   // Search repositories
-  const repositories = await searchMCPRepositories(searchQuery, maxResults);
+  const repositories = await searchMCPRepositories(searchQuery, maxResults, saveToDb);
   
   return {
     found: repositories.length,

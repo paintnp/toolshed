@@ -1,5 +1,11 @@
 import axios from 'axios';
 import { launchContainer, stopContainer } from '../aws/fargate';
+import { 
+  saveServer, 
+  updateServerVerification, 
+  getServer, 
+  ServerRecord 
+} from '../db/dynamodb';
 
 // Repository server metadata interface
 export interface MCPRepository {
@@ -24,6 +30,7 @@ export interface MCPRepository {
   lastTested?: string;
   status?: string;
   taskArn?: string;
+  tools?: MCPTool[];
 }
 
 // Tool definition from an MCP server
@@ -180,12 +187,43 @@ async function runSampleTool(
 }
 
 /**
+ * Convert MCPRepository to a ServerRecord for DynamoDB
+ * 
+ * @param {MCPRepository} repo - Repository metadata
+ * @returns {ServerRecord} Server record for DynamoDB
+ */
+function convertToServerRecord(repo: MCPRepository): ServerRecord {
+  return {
+    ServerId: repo.fullName,
+    name: repo.name,
+    fullName: repo.fullName,
+    description: repo.description || '',
+    language: repo.language,
+    url: repo.url,
+    stars: repo.stars,
+    forks: repo.forks,
+    topics: repo.topics,
+    discoveredAt: repo.discoveredAt,
+    verified: repo.verified,
+    toolCount: repo.toolCount,
+    tools: repo.tools as any[],
+    lastTested: repo.lastTested ? new Date(repo.lastTested).getTime() : undefined,
+    status: repo.status,
+    endpoint: repo.endpoint
+  };
+}
+
+/**
  * Verify an MCP server and update its metadata
  * 
  * @param {MCPRepository} server - Server metadata
+ * @param {boolean} [saveToDb=true] - Whether to save results to DynamoDB
  * @returns {Promise<MCPRepository>} Updated server metadata
  */
-export async function verifyServer(server: MCPRepository): Promise<MCPRepository> {
+export async function verifyServer(
+  server: MCPRepository,
+  saveToDb: boolean = true
+): Promise<MCPRepository> {
   console.log(`Verifying MCP server: ${server.fullName}`);
   
   // Initialize verification fields
@@ -197,6 +235,25 @@ export async function verifyServer(server: MCPRepository): Promise<MCPRepository
   };
   
   try {
+    // If saving to DB, check if server exists first
+    if (saveToDb) {
+      try {
+        const existingServer = await getServer(server.fullName);
+        if (existingServer) {
+          console.log(`Server ${server.fullName} found in DynamoDB, using existing data`);
+          // Merge existing data with current server
+          verifiedServer.verified = existingServer.verified;
+          verifiedServer.toolCount = existingServer.toolCount;
+          verifiedServer.tools = existingServer.tools;
+          verifiedServer.lastTested = existingServer.lastTested ? new Date(existingServer.lastTested).toISOString() : undefined;
+          verifiedServer.status = existingServer.status;
+          verifiedServer.endpoint = existingServer.endpoint;
+        }
+      } catch (dbError) {
+        console.error(`Error checking server ${server.fullName} in DynamoDB:`, dbError);
+      }
+    }
+    
     let endpoint = '';
     let taskArn = '';
     let launchedContainer = false;
@@ -222,6 +279,23 @@ export async function verifyServer(server: MCPRepository): Promise<MCPRepository
       
       if (!launchResult.success || !launchResult.endpoint) {
         verifiedServer.status = `Failed to launch container: ${launchResult.error || 'Unknown error'}`;
+        
+        // Save to DynamoDB if enabled
+        if (saveToDb) {
+          try {
+            await updateServerVerification(
+              server.fullName,
+              false,
+              {
+                status: verifiedServer.status,
+                lastTested: Date.now()
+              }
+            );
+          } catch (dbError) {
+            console.error(`Error updating verification status for ${server.fullName} in DynamoDB:`, dbError);
+          }
+        }
+        
         return verifiedServer;
       }
       
@@ -249,6 +323,23 @@ export async function verifyServer(server: MCPRepository): Promise<MCPRepository
         await stopContainer(taskArn);
       }
       
+      // Save to DynamoDB if enabled
+      if (saveToDb) {
+        try {
+          await updateServerVerification(
+            server.fullName,
+            false,
+            {
+              status: verifiedServer.status,
+              lastTested: Date.now(),
+              endpoint: verifiedServer.endpoint
+            }
+          );
+        } catch (dbError) {
+          console.error(`Error updating verification status for ${server.fullName} in DynamoDB:`, dbError);
+        }
+      }
+      
       return verifiedServer;
     }
     
@@ -263,10 +354,29 @@ export async function verifyServer(server: MCPRepository): Promise<MCPRepository
         await stopContainer(taskArn);
       }
       
+      // Save to DynamoDB if enabled
+      if (saveToDb) {
+        try {
+          await updateServerVerification(
+            server.fullName,
+            false,
+            {
+              status: verifiedServer.status,
+              toolCount: 0,
+              lastTested: Date.now(),
+              endpoint: verifiedServer.endpoint
+            }
+          );
+        } catch (dbError) {
+          console.error(`Error updating verification status for ${server.fullName} in DynamoDB:`, dbError);
+        }
+      }
+      
       return verifiedServer;
     }
     
     verifiedServer.toolCount = tools.length;
+    verifiedServer.tools = tools;
     
     if (tools.length === 0) {
       verifiedServer.status = 'No tools available';
@@ -274,6 +384,25 @@ export async function verifyServer(server: MCPRepository): Promise<MCPRepository
       // Stop container if we launched it
       if (launchedContainer && taskArn) {
         await stopContainer(taskArn);
+      }
+      
+      // Save to DynamoDB if enabled
+      if (saveToDb) {
+        try {
+          await updateServerVerification(
+            server.fullName,
+            false,
+            {
+              status: verifiedServer.status,
+              toolCount: 0,
+              tools: [],
+              lastTested: Date.now(),
+              endpoint: verifiedServer.endpoint
+            }
+          );
+        } catch (dbError) {
+          console.error(`Error updating verification status for ${server.fullName} in DynamoDB:`, dbError);
+        }
       }
       
       return verifiedServer;
@@ -297,6 +426,28 @@ export async function verifyServer(server: MCPRepository): Promise<MCPRepository
     verifiedServer.verified = runResult.success;
     verifiedServer.status = runResult.success ? 'OK' : 'Tool execution failed';
     
+    // Save to DynamoDB if enabled
+    if (saveToDb) {
+      try {
+        await updateServerVerification(
+          server.fullName,
+          verifiedServer.verified,
+          {
+            status: verifiedServer.status,
+            toolCount: tools.length,
+            tools,
+            lastTested: Date.now(),
+            endpoint: verifiedServer.endpoint,
+            sampleTool: sampleTool.name,
+            sampleOutput: verifiedServer.sampleOutput,
+            sampleRunSuccess: runResult.success
+          }
+        );
+      } catch (dbError) {
+        console.error(`Error updating verification status for ${server.fullName} in DynamoDB:`, dbError);
+      }
+    }
+    
     // Stop container if we launched it
     if (launchedContainer && taskArn) {
       console.log(`Stopping container: ${taskArn}`);
@@ -308,6 +459,22 @@ export async function verifyServer(server: MCPRepository): Promise<MCPRepository
     console.error(`Error verifying server ${server.fullName}:`, error);
     
     verifiedServer.status = `Error during verification: ${error instanceof Error ? error.message : String(error)}`;
+    
+    // Save to DynamoDB if enabled
+    if (saveToDb) {
+      try {
+        await updateServerVerification(
+          server.fullName,
+          false,
+          {
+            status: verifiedServer.status,
+            lastTested: Date.now()
+          }
+        );
+      } catch (dbError) {
+        console.error(`Error updating verification status for ${server.fullName} in DynamoDB:`, dbError);
+      }
+    }
     
     // Stop container if task ARN is available
     if (verifiedServer.taskArn) {
@@ -326,9 +493,13 @@ export async function verifyServer(server: MCPRepository): Promise<MCPRepository
  * Verify multiple MCP servers
  * 
  * @param {MCPRepository[]} servers - Array of server metadata
+ * @param {boolean} [saveToDb=true] - Whether to save results to DynamoDB
  * @returns {Promise<MCPRepository[]>} Updated server metadata
  */
-export async function verifyServers(servers: MCPRepository[]): Promise<MCPRepository[]> {
+export async function verifyServers(
+  servers: MCPRepository[],
+  saveToDb: boolean = true
+): Promise<MCPRepository[]> {
   console.log(`Starting verification of ${servers.length} MCP servers...`);
   
   const verifiedServers: MCPRepository[] = [];
@@ -336,16 +507,35 @@ export async function verifyServers(servers: MCPRepository[]): Promise<MCPReposi
   // Process servers sequentially to avoid overloading AWS
   for (const server of servers) {
     try {
-      const verifiedServer = await verifyServer(server);
+      const verifiedServer = await verifyServer(server, saveToDb);
       verifiedServers.push(verifiedServer);
     } catch (error) {
       console.error(`Error processing server ${server.fullName}:`, error);
-      verifiedServers.push({
+      
+      const errorServer: MCPRepository = {
         ...server,
         verified: false,
         status: `Error during verification: ${error instanceof Error ? error.message : String(error)}`,
         lastTested: new Date().toISOString()
-      });
+      };
+      
+      verifiedServers.push(errorServer);
+      
+      // Save error to DynamoDB if enabled
+      if (saveToDb) {
+        try {
+          await updateServerVerification(
+            server.fullName,
+            false,
+            {
+              status: errorServer.status,
+              lastTested: Date.now()
+            }
+          );
+        } catch (dbError) {
+          console.error(`Error updating verification status for ${server.fullName} in DynamoDB:`, dbError);
+        }
+      }
     }
   }
   

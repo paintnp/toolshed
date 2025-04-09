@@ -27,6 +27,55 @@ ToolShed includes a comprehensive system for discovering, cataloging, and verify
    - Provides options for direct access or load balancer routing
    - [Learn more about Fargate integration](#aws-fargate-integration)
 
+4. **DynamoDB Integration**
+   - Persistent storage for MCP server metadata
+   - Tracks verification status and tool information
+   - Enables searching and filtering of servers
+   - [Learn more about the database](lib/db/README.md)
+
+## Setup
+
+### AWS Configuration
+
+1. Set up AWS credentials with permissions for ECS, ELB, and DynamoDB
+2. Create a `.env.local` file based on `.env.template`:
+
+```
+AWS_REGION=us-east-1
+AWS_ACCESS_KEY_ID=your_access_key_id
+AWS_SECRET_ACCESS_KEY=your_secret_access_key
+# Additional configuration...
+```
+
+### DynamoDB Initialization
+
+Initialize the DynamoDB tables needed for the application:
+
+```bash
+# Create the DynamoDB table for MCP servers
+npx ts-node -P scripts/tsconfig.json scripts/init-dynamodb.ts
+```
+
+## Workflow
+
+1. **Discover MCP Servers**
+   ```bash
+   # Crawl GitHub for MCP servers and store in DynamoDB
+   npx ts-node -P scripts/tsconfig.json scripts/crawl-mcp-servers.ts "topic:mcp" 10
+   ```
+
+2. **Verify Servers**
+   ```bash
+   # Verify discovered servers and update metadata
+   npx ts-node -P scripts/tsconfig.json scripts/verify-mcp-servers.ts "topic:mcp" 5
+   ```
+
+3. **Run the Application**
+   ```bash
+   # Start the development server
+   npm run dev
+   ```
+
 ## AWS Fargate Integration
 
 The application includes integration with AWS Fargate for running MCP servers in isolated containers. These containers can be made accessible in two ways:
@@ -69,6 +118,7 @@ The execution role requires these permissions:
 - `logs:CreateLogStream`
 - `logs:PutLogEvents`
 - `elasticloadbalancing:*` (for ALB integration)
+- `dynamodb:*` (for DynamoDB integration)
 
 ## Networking Requirements
 

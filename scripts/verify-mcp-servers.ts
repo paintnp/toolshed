@@ -2,6 +2,11 @@
 
 import { crawlMCPServers } from '../lib/github/crawler';
 import { verifyServers, MCPRepository } from '../lib/verification/tester';
+import { tableExists } from '../lib/db/dynamodb';
+import dotenv from 'dotenv';
+
+// Load environment variables
+dotenv.config({ path: '.env.local' });
 
 async function main() {
   try {
@@ -10,15 +15,26 @@ async function main() {
     const query = args[0];
     const maxResults = args[1] ? parseInt(args[1]) : 2; // Default to 2 for safety
     const skipVerification = args.includes('--skip-verification');
+    const skipDb = args.includes('--skip-db');
     
     console.log('Starting MCP server discovery and verification...');
     console.log(`Query: ${query || 'Default (topic:mcp)'}`);
     console.log(`Max Results: ${maxResults}`);
-    console.log(`Skip Verification: ${skipVerification ? 'Yes' : 'No'}\n`);
+    console.log(`Skip Verification: ${skipVerification ? 'Yes' : 'No'}`);
+    console.log(`Skip Database: ${skipDb ? 'Yes' : 'No'}\n`);
+    
+    // Check if DynamoDB table exists
+    if (!skipDb) {
+      const hasTable = await tableExists();
+      if (!hasTable) {
+        console.error('DynamoDB table does not exist. Please run init-dynamodb.ts first or use --skip-db flag.');
+        process.exit(1);
+      }
+    }
     
     // Crawl GitHub repositories
     console.log('Step 1: Discovering MCP servers...');
-    const crawlResults = await crawlMCPServers(query, maxResults);
+    const crawlResults = await crawlMCPServers(query, maxResults, !skipDb);
     
     console.log(`Found ${crawlResults.found} MCP server repositories.\n`);
     
@@ -29,7 +45,7 @@ async function main() {
     
     // Verify discovered servers
     console.log('Step 2: Verifying MCP servers...');
-    const verifiedServers = await verifyServers(crawlResults.repositories);
+    const verifiedServers = await verifyServers(crawlResults.repositories, !skipDb);
     
     // Print verification results
     console.log('\nVerification Results:');
@@ -55,9 +71,13 @@ async function main() {
       console.log('');
     });
     
-    // In the future, this is where we would save to DynamoDB
     console.log('\nVerification completed.');
-    console.log('Note: Data is not being saved to a database yet.');
+    
+    if (!skipDb) {
+      console.log('Results saved to DynamoDB.');
+    } else {
+      console.log('Results not saved to database (--skip-db flag used).');
+    }
   } catch (error) {
     console.error('Error running script:', error);
     process.exit(1);

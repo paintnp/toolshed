@@ -1,0 +1,80 @@
+import { NextResponse } from "next/server";
+import { serverDetails, getMockToolResult } from "@/lib/data/servers";
+
+export async function POST(request: Request, context: { params: { id: string } }) {
+  const id = context.params.id;
+
+  // Check if server exists
+  const server = serverDetails[id];
+  if (!server) {
+    return NextResponse.json(
+      { success: false, error: "Server not found" },
+      { status: 404 }
+    );
+  }
+
+  try {
+    // Parse the request body
+    const body = await request.json();
+    const { tool, parameters } = body;
+
+    // Validate required fields
+    if (!tool) {
+      return NextResponse.json(
+        { success: false, error: "Tool name is required" },
+        { status: 400 }
+      );
+    }
+
+    // Validate that the tool exists for this server
+    const toolExists = server.tools.some((t) => t.name === tool);
+    if (!toolExists) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: `Tool '${tool}' not found for server '${server.name}'` 
+        },
+        { status: 400 }
+      );
+    }
+
+    // Get the tool definition
+    const toolDefinition = server.tools.find((t) => t.name === tool);
+    
+    // Validate parameters (basic validation)
+    if (toolDefinition && toolDefinition.parameters) {
+      const missingParams = Object.entries(toolDefinition.parameters)
+        .filter(([_, param]: [string, any]) => param.required)
+        .filter(([paramName]: [string, any]) => 
+          !parameters || !parameters.hasOwnProperty(paramName)
+        )
+        .map(([paramName]: [string, any]) => paramName);
+        
+      if (missingParams.length > 0) {
+        return NextResponse.json(
+          { 
+            success: false, 
+            error: `Missing required parameters: ${missingParams.join(', ')}` 
+          },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Simulate tool execution (in a real implementation, this would call the actual tool)
+    // Add artificial delay to simulate processing
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Get mock result for the tool
+    const result = getMockToolResult(tool);
+
+    return NextResponse.json(result);
+
+  } catch (error) {
+    console.error("Error executing tool:", error);
+    return NextResponse.json(
+      { success: false, error: "Invalid request format" },
+      { status: 400 }
+    );
+  }
+} 

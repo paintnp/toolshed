@@ -1,0 +1,426 @@
+import * as cdk from 'aws-cdk-lib';
+import { Construct } from 'constructs';
+import * as ecr from 'aws-cdk-lib/aws-ecr';
+import * as codebuild from 'aws-cdk-lib/aws-codebuild';
+import * as ecs from 'aws-cdk-lib/aws-ecs';
+import * as ec2 from 'aws-cdk-lib/aws-ec2';
+import * as iam from 'aws-cdk-lib/aws-iam';
+import * as lambda from 'aws-cdk-lib/aws-lambda';
+import * as sfn from 'aws-cdk-lib/aws-stepfunctions';
+import * as tasks from 'aws-cdk-lib/aws-stepfunctions-tasks';
+import * as logs from 'aws-cdk-lib/aws-logs';
+import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
+import * as path from 'path';
+
+export interface ValidationPipelineStackProps extends cdk.StackProps {
+  vpcId?: string;
+  subnetIds?: string[];
+  securityGroupId?: string;
+  dynamoDbTableName?: string;
+}
+
+export class ValidationPipelineStack extends cdk.Stack {
+  public readonly stateMachineArn: string;
+  
+  constructor(scope: Construct, id: string, props?: ValidationPipelineStackProps) {
+    super(scope, id, props);
+    
+    // Get VPC from props or create a new one
+    let vpc: ec2.IVpc;
+    if (props?.vpcId) {
+      vpc = ec2.Vpc.fromVpcAttributes(this, 'ExistingVpc', {
+        vpcId: props.vpcId,
+        availabilityZones: ['us-east-1a', 'us-east-1b'], // Replace with your AZs
+        publicSubnetIds: props.subnetIds,
+      });
+    } else {
+      vpc = new ec2.Vpc(this, 'ValidationVpc', {
+        maxAzs: 2,
+        natGateways: 1,
+      });
+    }
+    
+    // Security group for ECS tasks
+    let securityGroup: ec2.ISecurityGroup;
+    if (props?.securityGroupId) {
+      securityGroup = ec2.SecurityGroup.fromSecurityGroupId(
+        this, 
+        'ImportedSecurityGroup', 
+        props.securityGroupId
+      );
+    } else {
+      securityGroup = new ec2.SecurityGroup(this, 'EcsSecurityGroup', {
+        vpc,
+        description: 'Security group for MCP Server validation tasks',
+        allowAllOutbound: true,
+      });
+      
+      // Allow inbound traffic on port 8000 (typical MCP server port)
+      securityGroup.addIngressRule(
+        ec2.Peer.anyIpv4(),
+        ec2.Port.tcp(8000),
+        'Allow MCP server traffic'
+      );
+    }
+
+    // 1. ECR Repository for MCP Server Images
+    const repository = new ecr.Repository(this, 'MCPServerRepo', {
+      repositoryName: 'toolshed-mcp-servers-v2',
+      lifecycleRules: [
+        {
+          description: 'Keep only the last 100 images',
+          maxImageCount: 100,
+          rulePriority: 1,
+        },
+      ],
+    });
+    
+    // 2. GitHub Secret
+    // We assume a GitHub token is stored in Secrets Manager
+    const githubTokenSecret = secretsmanager.Secret.fromSecretNameV2(
+      this,
+      'GitHubToken',
+      'toolshed/github-token'
+    );
+    
+    // Docker Hub Secret
+    const dockerHubSecret = secretsmanager.Secret.fromSecretNameV2(
+      this,
+      'DockerHubCredentials',
+      'toolshed/dockerhub-credentials'
+    );
+    
+    // 3. CodeBuild Project
+    const buildProject = new codebuild.Project(this, 'MCPServerBuild', {
+      projectName: 'ToolShed-MCP-Server-Build',
+      description: 'Builds Docker images for MCP servers',
+      environment: {
+        buildImage: codebuild.LinuxBuildImage.AMAZON_LINUX_2_4,
+        privileged: true, // Required for Docker builds
+      },
+      environmentVariables: {
+        REPOSITORY_URI: {
+          value: repository.repositoryUri,
+          type: codebuild.BuildEnvironmentVariableType.PLAINTEXT,
+        },
+        GITHUB_TOKEN: {
+          value: githubTokenSecret.secretArn,
+          type: codebuild.BuildEnvironmentVariableType.SECRETS_MANAGER,
+        },
+        DOCKERHUB_USERNAME: {
+          value: `${dockerHubSecret.secretArn}:username`,
+          type: codebuild.BuildEnvironmentVariableType.SECRETS_MANAGER,
+        },
+        DOCKERHUB_TOKEN: {
+          value: `${dockerHubSecret.secretArn}:token`,
+          type: codebuild.BuildEnvironmentVariableType.SECRETS_MANAGER,
+        },
+      },
+      // Replace external buildspec with inline definition
+      buildSpec: codebuild.BuildSpec.fromObject({
+        version: '0.2',
+        phases: {
+          pre_build: {
+            commands: [
+              'echo Logging in to Amazon ECR...',
+              'aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $REPOSITORY_URI',
+              'echo Logging in to Docker Hub...',
+              'echo $DOCKERHUB_TOKEN | docker login -u $DOCKERHUB_USERNAME --password-stdin',
+              'REPO_URL=$(echo $CODEBUILD_INITIATOR | cut -d/ -f2)',
+              'REPO_NAME=$(echo $REPO_URL | cut -d@ -f1)',
+              'echo "Original repository name: $ORIGINAL_REPOSITORY_NAME"',
+              'TIMESTAMP=$(date +%Y%m%d%H%M%S)',
+              'echo "Create a sanitized image tag name (replace slashes with dashes)"',
+              'SANITIZED_REPO_NAME=$(echo $REPOSITORY_NAME | tr "/" "-")',
+              'echo "Use timestamp as fallback if CODEBUILD_RESOLVED_SOURCE_VERSION is empty"',
+              'SOURCE_VERSION=${CODEBUILD_RESOLVED_SOURCE_VERSION:-$TIMESTAMP}',
+              'echo "Important: Do not include a colon in IMAGE_TAG as it will be used in $REPOSITORY_URI:$IMAGE_TAG"',
+              'IMAGE_TAG="${SANITIZED_REPO_NAME}-${SOURCE_VERSION}"',
+              'echo "Using image tag: $IMAGE_TAG"'
+            ]
+          },
+          build: {
+            commands: [
+              'echo Cloning repository...',
+              'echo "Using repository name: $REPOSITORY_NAME"',
+              'echo "Using original repository name: $ORIGINAL_REPOSITORY_NAME"',
+              'echo "Using server ID: $SERVER_ID"',
+              'echo "Always use the ORIGINAL_REPOSITORY_NAME for git clone as it has the correct format with slashes"',
+              'echo "Cloning from: $ORIGINAL_REPOSITORY_NAME"',
+              'git clone "https://$GITHUB_TOKEN@github.com/$ORIGINAL_REPOSITORY_NAME.git" repo',
+              'cd repo',
+              'echo Building the Docker image...',
+              'echo "Docker image tag: $REPOSITORY_URI:$IMAGE_TAG"',
+              'docker build -t $REPOSITORY_URI:$IMAGE_TAG .',
+              'docker tag $REPOSITORY_URI:$IMAGE_TAG $REPOSITORY_URI:latest'
+            ]
+          },
+          post_build: {
+            commands: [
+              'echo Pushing the Docker image...',
+              'docker push $REPOSITORY_URI:$IMAGE_TAG',
+              'docker push $REPOSITORY_URI:latest',
+              'echo Writing image definition file...',
+              'echo "{\"imageUri\":\"$REPOSITORY_URI:$IMAGE_TAG\",\"serverId\":\"$SERVER_ID\"}" > imageDefinition.json'
+            ]
+          }
+        },
+        artifacts: {
+          files: ['imageDefinition.json']
+        }
+      }),
+    });
+    
+    // Grant permissions to the CodeBuild project
+    repository.grantPullPush(buildProject);
+    
+    // 4. ECS Cluster
+    const cluster = new ecs.Cluster(this, 'ValidationCluster', {
+      vpc,
+      clusterName: 'ToolShed-Validation-Cluster',
+    });
+    
+    // 5. ECS Task Role and Execution Role
+    const taskRole = new iam.Role(this, 'MCPServerTaskRole', {
+      assumedBy: new iam.ServicePrincipal('ecs-tasks.amazonaws.com'),
+      roleName: 'ToolShed-Validation-MCP-Server-Task-Role',
+      description: 'Role for MCP server tasks',
+    });
+    
+    const executionRole = new iam.Role(this, 'MCPServerExecutionRole', {
+      assumedBy: new iam.ServicePrincipal('ecs-tasks.amazonaws.com'),
+      roleName: 'ToolShed-Validation-MCP-Server-Execution-Role',
+      description: 'Execution role for MCP server tasks',
+      managedPolicies: [
+        iam.ManagedPolicy.fromAwsManagedPolicyName('service-role/AmazonECSTaskExecutionRolePolicy'),
+      ],
+    });
+    
+    // Give the execution role permissions to pull from ECR
+    repository.grantPull(executionRole);
+    
+    // 6. ECS Task Definition
+    const taskDefinition = new ecs.FargateTaskDefinition(this, 'MCPServerTaskDef', {
+      cpu: 256,
+      memoryLimitMiB: 512,
+      taskRole,
+      executionRole,
+    });
+    
+    // Container with placeholder image (will be overridden at runtime)
+    taskDefinition.addContainer('MCPServerContainer', {
+      image: ecs.ContainerImage.fromRegistry('amazon/amazon-ecs-sample'), // Placeholder
+      logging: ecs.LogDrivers.awsLogs({
+        streamPrefix: 'mcp-server',
+        logRetention: logs.RetentionDays.ONE_WEEK,
+      }),
+      portMappings: [
+        {
+          containerPort: 8000,
+          hostPort: 8000,
+          protocol: ecs.Protocol.TCP,
+        },
+      ],
+      essential: true,
+    });
+    
+    // 7. Lambda Function for Validation
+    const validationFunction = new lambda.Function(this, 'ValidationFunction', {
+      functionName: 'ToolShed-MCP-Server-Validation',
+      runtime: lambda.Runtime.NODEJS_18_X,
+      handler: 'index.handler',
+      code: lambda.Code.fromAsset(path.join(__dirname, 'cdk/lambda')),
+      timeout: cdk.Duration.minutes(5),
+      memorySize: 512,
+      environment: {
+        DYNAMODB_TABLE: props?.dynamoDbTableName || 'ToolShedServers',
+      },
+      vpc,
+      vpcSubnets: {
+        subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS,
+      },
+      securityGroups: [securityGroup],
+    });
+    
+    // Grant the Lambda function permissions to update DynamoDB
+    validationFunction.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: [
+          'dynamodb:GetItem',
+          'dynamodb:UpdateItem',
+          'dynamodb:PutItem',
+        ],
+        resources: [
+          `arn:aws:dynamodb:${this.region}:${this.account}:table/${props?.dynamoDbTableName || 'ToolShedServers'}`,
+        ],
+      })
+    );
+    
+    // 8. Step Functions State Machine
+    
+    // 8.1 CodeBuild Task
+    const buildTask = new tasks.CodeBuildStartBuild(this, 'BuildMCPServerImage', {
+      project: buildProject,
+      integrationPattern: sfn.IntegrationPattern.RUN_JOB,
+      environmentVariablesOverride: {
+        REPOSITORY_NAME: {
+          value: sfn.JsonPath.stringAt('$.repositoryName'),
+          type: codebuild.BuildEnvironmentVariableType.PLAINTEXT,
+        },
+        ORIGINAL_REPOSITORY_NAME: {
+          value: sfn.JsonPath.stringAt('$.originalRepositoryName'),
+          type: codebuild.BuildEnvironmentVariableType.PLAINTEXT,
+        },
+        SERVER_ID: {
+          value: sfn.JsonPath.stringAt('$.serverId'),
+          type: codebuild.BuildEnvironmentVariableType.PLAINTEXT,
+        }
+      },
+      resultPath: '$.buildResult',
+    });
+    
+    // 8.2 Parse Build Output
+    const parseImageUri = new sfn.Pass(this, 'ParseImageUri', {
+      parameters: {
+        imageUri: sfn.JsonPath.stringAt('$.buildResult.Build.Artifacts.Location'), // Will need post-processing
+        serverId: sfn.JsonPath.stringAt('$.serverId'),
+      },
+      resultPath: '$.imageDetails',
+    });
+    
+    // 8.3 ECS Task
+    const runContainerTask = new tasks.EcsRunTask(this, 'RunMCPServerContainer', {
+      cluster,
+      taskDefinition,
+      launchTarget: new tasks.EcsFargateLaunchTarget({
+        platformVersion: ecs.FargatePlatformVersion.LATEST,
+      }),
+      assignPublicIp: true,
+      securityGroups: [securityGroup],
+      containerOverrides: [
+        {
+          containerDefinition: taskDefinition.defaultContainer!,
+          // For dynamic image override at runtime, we'll use environment variables
+          environment: [
+            { name: 'IMAGE_URI', value: sfn.JsonPath.stringAt('$.imageDetails.imageUri') }
+          ]
+        }
+      ],
+      integrationPattern: sfn.IntegrationPattern.RUN_JOB,
+      resultPath: '$.taskResult',
+    });
+    
+    // 8.4 Lambda Validation Task
+    const validateTask = new tasks.LambdaInvoke(this, 'ValidateMCPServer', {
+      lambdaFunction: validationFunction,
+      payloadResponseOnly: true,
+      payload: sfn.TaskInput.fromObject({
+        serverId: sfn.JsonPath.stringAt('$.serverId'),
+        endpoint: sfn.JsonPath.stringAt('$.taskResult.Attachments[0].Details[?(@.Name == "networkConfiguration")].Value.NetworkInterfaces[0].PublicIp'),
+        taskArn: sfn.JsonPath.stringAt('$.taskResult.TaskArn'),
+      }),
+      resultPath: '$.validationResult',
+    });
+    
+    // 8.5 Use a Lambda function to stop the task instead
+    const stopTaskFunction = new lambda.Function(this, 'StopTaskFunction', {
+      functionName: 'ToolShed-Stop-ECS-Task',
+      runtime: lambda.Runtime.NODEJS_18_X,
+      handler: 'index.handler',
+      code: lambda.Code.fromInline(`
+        const { ECSClient, StopTaskCommand } = require("@aws-sdk/client-ecs");
+        
+        exports.handler = async (event) => {
+          const ecsClient = new ECSClient({ region: process.env.AWS_REGION });
+          
+          try {
+            const stopTaskCommand = new StopTaskCommand({
+              cluster: process.env.CLUSTER_ARN,
+              task: event.taskArn,
+              reason: 'Stopped by Step Functions'
+            });
+            
+            await ecsClient.send(stopTaskCommand);
+            
+            return { 
+              success: true, 
+              taskArn: event.taskArn 
+            };
+          } catch (error) {
+            console.error('Error stopping task:', error);
+            throw error;
+          }
+        }
+      `),
+      environment: {
+        CLUSTER_ARN: cluster.clusterArn
+      },
+      timeout: cdk.Duration.seconds(30)
+    });
+    
+    // Grant permission to stop tasks
+    stopTaskFunction.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: ['ecs:StopTask'],
+        resources: ['*']
+      })
+    );
+    
+    // Replace EcsRunTask with LambdaInvoke for cleanup
+    const cleanupTask = new tasks.LambdaInvoke(this, 'StopMCPServerContainer', {
+      lambdaFunction: stopTaskFunction,
+      payload: sfn.TaskInput.fromObject({
+        taskArn: sfn.JsonPath.stringAt('$.taskResult.TaskArn')
+      }),
+      resultPath: '$.cleanupResult'
+    });
+    
+    // 8.6 Success and Failure States
+    const successState = new sfn.Succeed(this, 'ValidationSucceeded');
+    const failState = new sfn.Fail(this, 'ValidationFailed', {
+      cause: 'MCP server validation failed',
+      error: 'ServerValidationError',
+    });
+    
+    // 8.7 Define Workflow
+    const definition = buildTask
+      .next(parseImageUri)
+      .next(runContainerTask)
+      .next(validateTask)
+      .next(cleanupTask)
+      .next(new sfn.Choice(this, 'CheckValidationResult')
+        .when(sfn.Condition.booleanEquals('$.validationResult.body.verified', true), successState)
+        .otherwise(failState)
+      );
+    
+    // 8.8 Create State Machine
+    const stateMachine = new sfn.StateMachine(this, 'ValidationPipeline', {
+      stateMachineName: 'ToolShed-MCP-Server-Validation-Pipeline',
+      definition,
+      timeout: cdk.Duration.minutes(30),
+      tracingEnabled: true,
+    });
+    
+    // Store the state machine ARN for output
+    this.stateMachineArn = stateMachine.stateMachineArn;
+    
+    // 9. Outputs
+    new cdk.CfnOutput(this, 'StateMachineArn', {
+      value: stateMachine.stateMachineArn,
+      description: 'ARN of the validation pipeline state machine',
+      exportName: 'ToolShed-ValidationPipeline-StateMachineArn',
+    });
+    
+    new cdk.CfnOutput(this, 'EcrRepositoryUri', {
+      value: repository.repositoryUri,
+      description: 'URI of the ECR repository for MCP server images',
+      exportName: 'ToolShed-ValidationPipeline-EcrRepositoryUri',
+    });
+    
+    new cdk.CfnOutput(this, 'EcsClusterName', {
+      value: cluster.clusterName,
+      description: 'Name of the ECS cluster for validation tasks',
+      exportName: 'ToolShed-ValidationPipeline-EcsClusterName',
+    });
+  }
+} 

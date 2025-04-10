@@ -115,6 +115,11 @@ export class ValidationPipelineStack extends cdk.Stack {
           value: `${dockerHubSecret.secretArn}:token`,
           type: codebuild.BuildEnvironmentVariableType.SECRETS_MANAGER,
         },
+        // Enable Docker BuildKit for advanced Docker features like --mount
+        DOCKER_BUILDKIT: {
+          value: '1',
+          type: codebuild.BuildEnvironmentVariableType.PLAINTEXT,
+        },
       },
       // Replace external buildspec with inline definition
       buildSpec: codebuild.BuildSpec.fromObject({
@@ -151,15 +156,20 @@ export class ValidationPipelineStack extends cdk.Stack {
               'cd repo',
               'echo Building the Docker image...',
               'echo "Docker image tag: $REPOSITORY_URI:$IMAGE_TAG"',
-              'docker build -t $REPOSITORY_URI:$IMAGE_TAG .',
+              // Verify BuildKit is enabled
+              'echo "Enabling Docker BuildKit explicitly..."',
+              'export DOCKER_BUILDKIT=1',
+              // Add error handling for the Docker build command
+              'docker build -t $REPOSITORY_URI:$IMAGE_TAG . || (echo "Docker build failed, checking Dockerfile..."; cat Dockerfile; exit 1)',
               'docker tag $REPOSITORY_URI:$IMAGE_TAG $REPOSITORY_URI:latest'
             ]
           },
           post_build: {
             commands: [
               'echo Pushing the Docker image...',
-              'docker push $REPOSITORY_URI:$IMAGE_TAG',
-              'docker push $REPOSITORY_URI:latest',
+              // Add error handling for the Docker push commands
+              'docker push $REPOSITORY_URI:$IMAGE_TAG || (echo "Docker push failed, verifying image exists..."; docker images; exit 1)',
+              'docker push $REPOSITORY_URI:latest || echo "Warning: Failed to push latest tag, but build ID tag was pushed successfully"',
               'echo Writing image definition file...',
               'echo "{\"imageUri\":\"$REPOSITORY_URI:$IMAGE_TAG\",\"serverId\":\"$SERVER_ID\"}" > imageDefinition.json'
             ]

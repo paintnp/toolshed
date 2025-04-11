@@ -1,0 +1,9 @@
+{
+  "name": "stop-task",
+  "version": "1.0.0",
+  "description": "Lambda function to stop ECS tasks",
+  "main": "index.js",
+  "dependencies": {
+    "@aws-sdk/client-ecs": "^3.0.0"
+  }
+} 

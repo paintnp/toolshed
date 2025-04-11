@@ -141,7 +141,8 @@ export class ValidationPipelineStack extends cdk.Stack {
               'SOURCE_VERSION=${CODEBUILD_RESOLVED_SOURCE_VERSION:-$TIMESTAMP}',
               'echo "Important: Do not include a colon in IMAGE_TAG as it will be used in $REPOSITORY_URI:$IMAGE_TAG"',
               'IMAGE_TAG="${SANITIZED_REPO_NAME}-${SOURCE_VERSION}"',
-              'echo "Using image tag: $IMAGE_TAG"'
+              'echo "Using image tag: $IMAGE_TAG"',
+              'export IMAGE_TAG'
             ]
           },
           build: {
@@ -178,12 +179,16 @@ export class ValidationPipelineStack extends cdk.Stack {
               'docker push $REPOSITORY_URI:$IMAGE_TAG || (echo "Docker push failed, verifying image exists..."; docker images; exit 1)',
               'docker push $REPOSITORY_URI:latest || echo "Warning: Failed to push latest tag, but build ID tag was pushed successfully"',
               'echo Writing image definition file...',
-              'echo "{\"imageUri\":\"$REPOSITORY_URI:$IMAGE_TAG\",\"serverId\":\"$SERVER_ID\"}" > imageDefinition.json'
+              'echo "{\"imageUri\":\"$REPOSITORY_URI:$IMAGE_TAG\",\"serverId\":\"$SERVER_ID\"}" > imageDefinition.json',
+              'echo "{\"imageUri\":\"$REPOSITORY_URI:$IMAGE_TAG\",\"repositoryUri\":\"$REPOSITORY_URI\",\"imageTag\":\"$IMAGE_TAG\",\"serverId\":\"$SERVER_ID\"}" > image-details.json'
             ]
           }
         },
         artifacts: {
-          files: ['imageDefinition.json']
+          files: [
+            'imageDefinition.json',
+            'image-details.json'
+          ]
         }
       }),
     });
@@ -215,31 +220,6 @@ export class ValidationPipelineStack extends cdk.Stack {
     
     // Give the execution role permissions to pull from ECR
     repository.grantPull(executionRole);
-    
-    // 6. ECS Task Definition
-    const taskDefinition = new ecs.FargateTaskDefinition(this, 'MCPServerTaskDef', {
-      cpu: 256,
-      memoryLimitMiB: 512,
-      taskRole,
-      executionRole,
-    });
-    
-    // Container with placeholder image (will be overridden at runtime)
-    taskDefinition.addContainer('MCPServerContainer', {
-      image: ecs.ContainerImage.fromRegistry('amazon/amazon-ecs-sample'), // Placeholder
-      logging: ecs.LogDrivers.awsLogs({
-        streamPrefix: 'mcp-server',
-        logRetention: logs.RetentionDays.ONE_WEEK,
-      }),
-      portMappings: [
-        {
-          containerPort: 8000,
-          hostPort: 8000,
-          protocol: ecs.Protocol.TCP,
-        },
-      ],
-      essential: true,
-    });
     
     // 7. Lambda Function for Validation
     const validationFunction = new lambda.Function(this, 'ValidationFunction', {
@@ -297,82 +277,189 @@ export class ValidationPipelineStack extends cdk.Stack {
     });
     
     // 8.2 Parse Build Output
-    const parseImageUri = new sfn.Pass(this, 'ParseImageUri', {
-      parameters: {
-        imageUri: sfn.JsonPath.stringAt('$.buildResult.Build.Artifacts.Location'), // Will need post-processing
-        serverId: sfn.JsonPath.stringAt('$.serverId'),
-      },
-      resultPath: '$.imageDetails',
+    // Add a Lambda function to extract the image URI from the CodeBuild output
+    const extractImageUriFunction = new lambda.Function(this, 'ExtractImageUriFunction', {
+      functionName: 'ToolShed-Extract-Image-Uri',
+      runtime: lambda.Runtime.NODEJS_18_X,
+      handler: 'index.handler',
+      code: lambda.Code.fromInline(`
+        exports.handler = async (event) => {
+          console.log('Input event:', JSON.stringify(event, null, 2));
+          
+          // Construct the image URI from the available information
+          let imageUri;
+          let serverId = event.serverId;
+          
+          try {
+            // Get information from the build output
+            if (event.buildResult?.Build) {
+              const build = event.buildResult.Build;
+              
+              // Get repository URI from environment variables
+              const repoUri = build.Environment.EnvironmentVariables
+                .find(v => v.Name === 'REPOSITORY_URI')?.Value;
+              
+              // Get repository name and server ID 
+              const repoName = build.Environment.EnvironmentVariables
+                .find(v => v.Name === 'REPOSITORY_NAME')?.Value;
+              
+              // Get the timestamp from the build logs or buildNumber as fallback
+              const buildNumber = build.BuildNumber.toString().padStart(3, '0');
+              const timestamp = build.StartTime ? 
+                new Date(build.StartTime).toISOString()
+                  .replace(/[-:]/g, '')
+                  .replace('T', '')
+                  .replace(/\\..+/, '') : 
+                new Date().toISOString()
+                  .replace(/[-:]/g, '')
+                  .replace('T', '')
+                  .replace(/\\..+/, '');
+              
+              // Construct the image tag using the sanitized repo name and timestamp
+              if (repoName && repoUri) {
+                const sanitizedRepoName = repoName.replace(/\\//g, '-');
+                // Use the buildNumber to ensure uniqueness
+                const imageTag = \`\${sanitizedRepoName}-\${timestamp}-\${buildNumber}\`;
+                imageUri = \`\${repoUri}:\${imageTag}\`;
+                console.log('Constructed image URI:', imageUri);
+              }
+            }
+            
+            // Error if we couldn't determine the image URI
+            if (!imageUri) {
+              throw new Error('Could not determine image URI from build output. Check CodeBuild logs for more details.');
+            }
+            
+            return {
+              imageUri,
+              serverId
+            };
+          } catch (error) {
+            console.error('Error extracting image URI:', error);
+            throw error;
+          }
+        }
+      `),
+      timeout: cdk.Duration.seconds(30)
     });
     
-    // 8.3 ECS Task
-    const runContainerTask = new tasks.EcsRunTask(this, 'RunMCPServerContainer', {
-      cluster,
-      taskDefinition,
-      launchTarget: new tasks.EcsFargateLaunchTarget({
-        platformVersion: ecs.FargatePlatformVersion.LATEST,
+    // Grant the Lambda function permissions
+    extractImageUriFunction.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: ['s3:GetObject'],
+        resources: ['*']
+      })
+    );
+    
+    const parseImageUri = new tasks.LambdaInvoke(this, 'ParseImageUri', {
+      lambdaFunction: extractImageUriFunction,
+      payload: sfn.TaskInput.fromObject({
+        buildResult: sfn.JsonPath.objectAt('$.buildResult'),
+        serverId: sfn.JsonPath.stringAt('$.serverId')
       }),
-      assignPublicIp: true,
-      securityGroups: [securityGroup],
-      containerOverrides: [
-        {
-          containerDefinition: taskDefinition.defaultContainer!,
-          // For dynamic image override at runtime, we'll use environment variables
-          environment: [
-            { name: 'IMAGE_URI', value: sfn.JsonPath.stringAt('$.imageDetails.imageUri') }
+      resultPath: '$.imageDetails',
+      payloadResponseOnly: true
+    });
+    
+    // 8.3 Register Dynamic Task Definition
+    const registerTask = new tasks.CallAwsService(this, 'RegisterValidationTaskDef', {
+      service: 'ecs',
+      action: 'registerTaskDefinition',
+      parameters: {
+        Family: 'ToolShedValidation',
+        NetworkMode: 'awsvpc',
+        RequiresCompatibilities: ['FARGATE'],
+        Cpu: '256',
+        Memory: '512',
+        ExecutionRoleArn: executionRole.roleArn,
+        TaskRoleArn: taskRole.roleArn,
+        ContainerDefinitions: [{
+          Name: 'MCPServerContainer',
+          Image: sfn.JsonPath.stringAt('$.imageDetails.imageUri'),
+          Essential: true,
+          Memory: 512,
+          LogConfiguration: {
+            LogDriver: 'awslogs',
+            Options: {
+              'awslogs-group': `/ecs/ToolShedValidation`,
+              'awslogs-region': this.region,
+              'awslogs-stream-prefix': 'mcp-server'
+            }
+          },
+          PortMappings: [
+            {
+              ContainerPort: 8000,
+              HostPort: 8000,
+              Protocol: 'tcp'
+            }
           ]
-        }
-      ],
-      integrationPattern: sfn.IntegrationPattern.RUN_JOB,
+        }]
+      },
+      resultPath: '$.registeredTask',
+      iamResources: ['*']
+    });
+    
+    // 8.4 ECS Task - Use AWS Service integration instead of EcsRunTask
+    const runContainerTask = new tasks.CallAwsService(this, 'RunMCPServerContainer', {
+      service: 'ecs',
+      action: 'runTask',
+      parameters: {
+        Cluster: cluster.clusterArn,
+        TaskDefinition: sfn.JsonPath.stringAt('$.registeredTask.TaskDefinition.TaskDefinitionArn'),
+        NetworkConfiguration: {
+          AwsvpcConfiguration: {
+            Subnets: vpc.publicSubnets.map(subnet => subnet.subnetId),
+            SecurityGroups: [securityGroup.securityGroupId],
+            AssignPublicIp: 'ENABLED'
+          }
+        },
+        LaunchType: 'FARGATE',
+        PlatformVersion: 'LATEST'
+      },
+      iamResources: ['*'],
+      integrationPattern: sfn.IntegrationPattern.REQUEST_RESPONSE,
       resultPath: '$.taskResult',
     });
     
-    // 8.4 Lambda Validation Task
+    // 8.4.1 Add a wait state for the task to start up and get a public IP
+    const waitForTask = new sfn.Wait(this, 'WaitForTaskStartup', {
+      time: sfn.WaitTime.duration(cdk.Duration.seconds(60))
+    });
+    
+    // 8.4.2 Add a task to describe the running task
+    const describeTask = new tasks.CallAwsService(this, 'DescribeTask', {
+      service: 'ecs',
+      action: 'describeTasks',
+      parameters: {
+        Cluster: cluster.clusterArn,
+        Tasks: sfn.JsonPath.array(sfn.JsonPath.stringAt('$.taskResult.Tasks[0].TaskArn'))
+      },
+      iamResources: ['*'],
+      resultPath: '$.taskDescription'
+    });
+    
+    // 8.5 Lambda Validation Task
     const validateTask = new tasks.LambdaInvoke(this, 'ValidateMCPServer', {
       lambdaFunction: validationFunction,
       payloadResponseOnly: true,
       payload: sfn.TaskInput.fromObject({
         serverId: sfn.JsonPath.stringAt('$.serverId'),
-        endpoint: sfn.JsonPath.stringAt('$.taskResult.Attachments[0].Details[?(@.Name == "networkConfiguration")].Value.NetworkInterfaces[0].PublicIp'),
-        taskArn: sfn.JsonPath.stringAt('$.taskResult.TaskArn'),
+        endpoint: sfn.JsonPath.stringAt('$.taskDescription.Tasks[0].Attachments[0].Details[?(@.Name == "networkConfiguration")].Value.NetworkInterfaces[0].PublicIp'),
+        taskArn: sfn.JsonPath.stringAt('$.taskDescription.Tasks[0].TaskArn'),
       }),
       resultPath: '$.validationResult',
     });
     
-    // 8.5 Use a Lambda function to stop the task instead
+    // 8.6 Use a Lambda function to stop the task instead
     const stopTaskFunction = new lambda.Function(this, 'StopTaskFunction', {
       functionName: 'ToolShed-Stop-ECS-Task',
       runtime: lambda.Runtime.NODEJS_18_X,
       handler: 'index.handler',
-      code: lambda.Code.fromInline(`
-        const { ECSClient, StopTaskCommand } = require("@aws-sdk/client-ecs");
-        
-        exports.handler = async (event) => {
-          const ecsClient = new ECSClient({ region: process.env.AWS_REGION });
-          
-          try {
-            const stopTaskCommand = new StopTaskCommand({
-              cluster: process.env.CLUSTER_ARN,
-              task: event.taskArn,
-              reason: 'Stopped by Step Functions'
-            });
-            
-            await ecsClient.send(stopTaskCommand);
-            
-            return { 
-              success: true, 
-              taskArn: event.taskArn 
-            };
-          } catch (error) {
-            console.error('Error stopping task:', error);
-            throw error;
-          }
-        }
-      `),
+      code: lambda.Code.fromAsset(path.join(__dirname, 'cdk/lambda/stop-task')),
+      timeout: cdk.Duration.seconds(30),
       environment: {
         CLUSTER_ARN: cluster.clusterArn
-      },
-      timeout: cdk.Duration.seconds(30)
+      }
     });
     
     // Grant permission to stop tasks
@@ -387,7 +474,7 @@ export class ValidationPipelineStack extends cdk.Stack {
     const cleanupTask = new tasks.LambdaInvoke(this, 'StopMCPServerContainer', {
       lambdaFunction: stopTaskFunction,
       payload: sfn.TaskInput.fromObject({
-        taskArn: sfn.JsonPath.stringAt('$.taskResult.TaskArn')
+        taskArn: sfn.JsonPath.stringAt('$.taskDescription.Tasks[0].TaskArn')
       }),
       resultPath: '$.cleanupResult'
     });
@@ -399,25 +486,69 @@ export class ValidationPipelineStack extends cdk.Stack {
       error: 'ServerValidationError',
     });
     
-    // 8.7 Define Workflow
+    // 8.7 Define Workflow - Modified to include the register task step and wait state
     const definition = buildTask
       .next(parseImageUri)
-      .next(runContainerTask)
-      .next(validateTask)
-      .next(cleanupTask)
+      .next(registerTask)     // Register dynamic task definition
+      .next(runContainerTask) // Run the ECS task with new task definition
+      .next(waitForTask)      // Wait for the task to initialize
+      .next(describeTask)     // Get task details including networking info
+      .next(validateTask)     // Validate the MCP server
+      .next(cleanupTask)      // Stop the task
       .next(new sfn.Choice(this, 'CheckValidationResult')
-        .when(sfn.Condition.booleanEquals('$.validationResult.body.verified', true), successState)
+        .when(sfn.Condition.booleanEquals('$.validationResult.verified', true), successState)
         .otherwise(failState)
       );
     
-    // 8.8 Create State Machine
+    // 8.8 Create State Machine - Ensure proper role configuration for registerTask
+    const stateMachineRole = new iam.Role(this, 'ValidationPipelineRole', {
+      assumedBy: new iam.ServicePrincipal('states.amazonaws.com'),
+      description: 'Role for MCP Server Validation Pipeline State Machine',
+    });
+
+    // Add permissions to register task definitions, run tasks, and pass roles
+    stateMachineRole.addToPolicy(
+      new iam.PolicyStatement({
+        actions: [
+          'ecs:RegisterTaskDefinition',
+          'ecs:RunTask',
+          'ecs:DescribeTasks',
+          'ecs:StopTask',
+          'iam:PassRole'
+        ],
+        resources: ['*']
+      })
+    );
+
+    // Add permission to invoke Lambda functions
+    stateMachineRole.addToPolicy(
+      new iam.PolicyStatement({
+        actions: ['lambda:InvokeFunction'],
+        resources: [
+          validationFunction.functionArn,
+          stopTaskFunction.functionArn,
+          extractImageUriFunction.functionArn
+        ]
+      })
+    );
+
+    // Add permissions to use CodeBuild
+    stateMachineRole.addToPolicy(
+      new iam.PolicyStatement({
+        actions: ['codebuild:StartBuild', 'codebuild:BatchGetBuilds'],
+        resources: [buildProject.projectArn]
+      })
+    );
+
+    // Create the state machine with the updated role and definition
     const stateMachine = new sfn.StateMachine(this, 'ValidationPipeline', {
       stateMachineName: 'ToolShed-MCP-Server-Validation-Pipeline',
       definition,
       timeout: cdk.Duration.minutes(30),
       tracingEnabled: true,
+      role: stateMachineRole
     });
-    
+
     // Store the state machine ARN for output
     this.stateMachineArn = stateMachine.stateMachineArn;
     
@@ -425,19 +556,41 @@ export class ValidationPipelineStack extends cdk.Stack {
     new cdk.CfnOutput(this, 'StateMachineArn', {
       value: stateMachine.stateMachineArn,
       description: 'ARN of the validation pipeline state machine',
-      exportName: 'ToolShed-ValidationPipeline-StateMachineArn',
     });
     
     new cdk.CfnOutput(this, 'EcrRepositoryUri', {
       value: repository.repositoryUri,
-      description: 'URI of the ECR repository for MCP server images',
-      exportName: 'ToolShed-ValidationPipeline-EcrRepositoryUri',
+      description: 'URI of the ECR repository',
     });
     
     new cdk.CfnOutput(this, 'EcsClusterName', {
       value: cluster.clusterName,
-      description: 'Name of the ECS cluster for validation tasks',
-      exportName: 'ToolShed-ValidationPipeline-EcsClusterName',
+      description: 'Name of the ECS cluster',
+    });
+
+    // Export resources for testing
+    new cdk.CfnOutput(this, 'ClusterArn', {
+      value: cluster.clusterArn,
+      description: 'ARN of the ECS cluster',
+      exportName: 'ValidationPipelineStack:ClusterArn'
+    });
+
+    new cdk.CfnOutput(this, 'SecurityGroupId', {
+      value: securityGroup.securityGroupId,
+      description: 'ID of the security group',
+      exportName: 'ValidationPipelineStack:SecurityGroupId'
+    });
+
+    new cdk.CfnOutput(this, 'PublicSubnet1', {
+      value: vpc.publicSubnets[0].subnetId,
+      description: 'ID of the first public subnet',
+      exportName: 'ValidationPipelineStack:PublicSubnet1'
+    });
+
+    new cdk.CfnOutput(this, 'PublicSubnet2', {
+      value: vpc.publicSubnets[1].subnetId,
+      description: 'ID of the second public subnet',
+      exportName: 'ValidationPipelineStack:PublicSubnet2'
     });
   }
 }

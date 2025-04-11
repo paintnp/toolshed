@@ -159,8 +159,15 @@ export class ValidationPipelineStack extends cdk.Stack {
               // Verify BuildKit is enabled
               'echo "Enabling Docker BuildKit explicitly..."',
               'export DOCKER_BUILDKIT=1',
-              // Add error handling for the Docker build command
-              'docker build -t $REPOSITORY_URI:$IMAGE_TAG . || (echo "Docker build failed, checking Dockerfile..."; cat Dockerfile; exit 1)',
+              'export DOCKER_BUILDX_EXPERIMENTAL=1',
+              // Use docker buildx build instead of plain docker build to ensure BuildKit usage
+              'docker buildx install || echo "Buildx already installed"',
+              'docker buildx create --use --name codebuild_builder || echo "Builder exists or couldn\'t be created"',
+              // Add a fallback strategy to modify the Dockerfile if it contains BuildKit-specific directives
+              'echo "Checking Dockerfile for BuildKit-specific directives..."',
+              'if grep -q "\\-\\-mount=type=cache" Dockerfile; then echo "BuildKit cache mount found, creating compatible version"; cp Dockerfile Dockerfile.original; sed "s/RUN --mount=type=cache/RUN/" Dockerfile > Dockerfile.nobuildkit; fi',
+              // Try with buildx first, then fallback to regular build if that fails, with further fallback to no-cache build and finally a build with modified Dockerfile
+              'docker buildx build --progress=plain -t $REPOSITORY_URI:$IMAGE_TAG . || (echo "Docker buildx build failed, trying legacy build without cache..."; docker build --no-cache -t $REPOSITORY_URI:$IMAGE_TAG . || (echo "Docker build failed, checking if we need to use modified Dockerfile..."; if [ -f Dockerfile.nobuildkit ]; then echo "Trying build with BuildKit-compatible Dockerfile"; docker build -f Dockerfile.nobuildkit -t $REPOSITORY_URI:$IMAGE_TAG . || (echo "All build attempts failed, showing Dockerfile"; cat Dockerfile; exit 1); else echo "No BuildKit directives found to modify. Build failed."; cat Dockerfile; exit 1; fi))',
               'docker tag $REPOSITORY_URI:$IMAGE_TAG $REPOSITORY_URI:latest'
             ]
           },
@@ -433,4 +440,4 @@ export class ValidationPipelineStack extends cdk.Stack {
       exportName: 'ToolShed-ValidationPipeline-EcsClusterName',
     });
   }
-} 
+}

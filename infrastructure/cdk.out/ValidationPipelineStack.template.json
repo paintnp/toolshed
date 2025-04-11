@@ -1003,7 +1003,7 @@
    "Properties": {
     "Code": {
      "S3Bucket": "cdk-hnb659fds-assets-277502524328-us-east-1",
-     "S3Key": "4c4f49c66a97595fc0a67fd546d2c3845f694901c9f1cb497d37d12a3c35a2b1.zip"
+     "S3Key": "5faea8dee4958bafc7c6f9bfd2f0d146bb11f7d4a73ba9e5aecb65f222dba63c.zip"
     },
     "Environment": {
      "Variables": {
@@ -1050,7 +1050,7 @@
    ],
    "Metadata": {
     "aws:cdk:path": "ValidationPipelineStack/ValidationFunction/Resource",
-    "aws:asset:path": "asset.4c4f49c66a97595fc0a67fd546d2c3845f694901c9f1cb497d37d12a3c35a2b1",
+    "aws:asset:path": "asset.5faea8dee4958bafc7c6f9bfd2f0d146bb11f7d4a73ba9e5aecb65f222dba63c",
     "aws:asset:is-bundled": false,
     "aws:asset:property": "Code"
    }

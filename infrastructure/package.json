@@ -1,0 +1,26 @@
+{
+  "name": "toolshed-infrastructure",
+  "version": "0.1.0",
+  "description": "AWS CDK infrastructure for Toolshed MCP server validation pipeline",
+  "main": "app.js",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc -w",
+    "cdk": "cdk",
+    "deploy": "cdk deploy",
+    "diff": "cdk diff",
+    "synth": "cdk synth",
+    "bootstrap": "npx ts-node bootstrap.ts && cdk bootstrap aws://277502524328/us-east-1"
+  },
+  "dependencies": {
+    "aws-cdk-lib": "^2.100.0",
+    "constructs": "^10.3.0",
+    "dotenv": "^16.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.9.0",
+    "aws-cdk": "^2.100.0",
+    "ts-node": "^10.9.1",
+    "typescript": "^5.2.2"
+  }
+} 

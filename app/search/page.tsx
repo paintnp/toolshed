@@ -3,10 +3,10 @@
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Navigation } from "@/components/Navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { Loader2 } from "lucide-react";
 
-export default function SearchResults() {
+function SearchResultsContent() {
   const searchParams = useSearchParams();
   const query = searchParams.get("query") || "";
   
@@ -113,5 +113,20 @@ export default function SearchResults() {
         )}
       </main>
     </div>
+  );
+}
+
+export default function SearchResults() {
+  return (
+    <Suspense fallback={
+      <div className="flex flex-col min-h-screen">
+        <Navigation />
+        <div className="flex-1 flex justify-center items-center">
+          <Loader2 className="h-10 w-10 animate-spin text-gray-400" />
+        </div>
+      </div>
+    }>
+      <SearchResultsContent />
+    </Suspense>
   );
 } 

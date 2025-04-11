@@ -1,0 +1,541 @@
+{
+    "events": [
+        {
+            "timestamp": 1744310507472,
+            "message": "[Container] 2025/04/10 18:41:42.862655 Running on CodeBuild On-demand\n",
+            "ingestionTime": 1744310507497
+        },
+        {
+            "timestamp": 1744310507472,
+            "message": "[Container] 2025/04/10 18:41:42.862675 Waiting for agent ping\n",
+            "ingestionTime": 1744310507497
+        },
+        {
+            "timestamp": 1744310507472,
+            "message": "[Container] 2025/04/10 18:41:43.064872 Waiting for DOWNLOAD_SOURCE\n",
+            "ingestionTime": 1744310507497
+        },
+        {
+            "timestamp": 1744310507472,
+            "message": "[Container] 2025/04/10 18:41:43.313160 Phase is DOWNLOAD_SOURCE\n",
+            "ingestionTime": 1744310507497
+        },
+        {
+            "timestamp": 1744310507472,
+            "message": "[Container] 2025/04/10 18:41:43.344332 CODEBUILD_SRC_DIR=/codebuild/output/src3412568650/src\n",
+            "ingestionTime": 1744310507497
+        },
+        {
+            "timestamp": 1744310507472,
+            "message": "[Container] 2025/04/10 18:41:43.344472 YAML location is /codebuild/readonly/buildspec.yml\n",
+            "ingestionTime": 1744310507497
+        },
+        {
+            "timestamp": 1744310507472,
+            "message": "[Container] 2025/04/10 18:41:43.349634 Processing environment variables\n",
+            "ingestionTime": 1744310507497
+        },
+        {
+            "timestamp": 1744310507472,
+            "message": "[Container] 2025/04/10 18:41:43.613001 No runtime version selected in buildspec.\n",
+            "ingestionTime": 1744310507497
+        },
+        {
+            "timestamp": 1744310507472,
+            "message": "[Container] 2025/04/10 18:41:43.645061 Moving to directory /codebuild/output/src3412568650/src\n",
+            "ingestionTime": 1744310507497
+        },
+        {
+            "timestamp": 1744310507472,
+            "message": "[Container] 2025/04/10 18:41:43.645090 Cache is not defined in the buildspec\n",
+            "ingestionTime": 1744310507497
+        },
+        {
+            "timestamp": 1744310507472,
+            "message": "[Container] 2025/04/10 18:41:43.681356 Skip cache due to: no paths specified to be cached\n",
+            "ingestionTime": 1744310507497
+        },
+        {
+            "timestamp": 1744310507472,
+            "message": "[Container] 2025/04/10 18:41:43.681709 Registering with agent\n",
+            "ingestionTime": 1744310507497
+        },
+        {
+            "timestamp": 1744310507472,
+            "message": "[Container] 2025/04/10 18:41:43.714273 Phases found in YAML: 3\n",
+            "ingestionTime": 1744310507497
+        },
+        {
+            "timestamp": 1744310507472,
+            "message": "[Container] 2025/04/10 18:41:43.714297  PRE_BUILD: 10 commands\n",
+            "ingestionTime": 1744310507497
+        },
+        {
+            "timestamp": 1744310507472,
+            "message": "[Container] 2025/04/10 18:41:43.714302  BUILD: 12 commands\n",
+            "ingestionTime": 1744310507497
+        },
+        {
+            "timestamp": 1744310507472,
+            "message": "[Container] 2025/04/10 18:41:43.714305  POST_BUILD: 5 commands\n",
+            "ingestionTime": 1744310507497
+        },
+        {
+            "timestamp": 1744310507472,
+            "message": "[Container] 2025/04/10 18:41:43.714742 Phase complete: DOWNLOAD_SOURCE State: SUCCEEDED\n",
+            "ingestionTime": 1744310507497
+        },
+        {
+            "timestamp": 1744310507472,
+            "message": "[Container] 2025/04/10 18:41:43.714833 Phase context status code:  Message: \n",
+            "ingestionTime": 1744310507497
+        },
+        {
+            "timestamp": 1744310507472,
+            "message": "[Container] 2025/04/10 18:41:43.781924 Entering phase INSTALL\n",
+            "ingestionTime": 1744310507497
+        },
+        {
+            "timestamp": 1744310507472,
+            "message": "[Container] 2025/04/10 18:41:43.816397 Phase complete: INSTALL State: SUCCEEDED\n",
+            "ingestionTime": 1744310507497
+        },
+        {
+            "timestamp": 1744310507472,
+            "message": "[Container] 2025/04/10 18:41:43.816416 Phase context status code:  Message: \n",
+            "ingestionTime": 1744310507497
+        },
+        {
+            "timestamp": 1744310507472,
+            "message": "[Container] 2025/04/10 18:41:43.849451 Entering phase PRE_BUILD\n",
+            "ingestionTime": 1744310507497
+        },
+        {
+            "timestamp": 1744310507472,
+            "message": "[Container] 2025/04/10 18:41:43.888339 Running command echo Logging in to Amazon ECR...\n",
+            "ingestionTime": 1744310507497
+        },
+        {
+            "timestamp": 1744310507472,
+            "message": "Logging in to Amazon ECR...\n",
+            "ingestionTime": 1744310507497
+        },
+        {
+            "timestamp": 1744310507472,
+            "message": "\n",
+            "ingestionTime": 1744310507497
+        },
+        {
+            "timestamp": 1744310507472,
+            "message": "[Container] 2025/04/10 18:41:43.893463 Running command aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $REPOSITORY_URI\n",
+            "ingestionTime": 1744310507497
+        },
+        {
+            "timestamp": 1744310521430,
+            "message": "WARNING! Your password will be stored unencrypted in /root/.docker/config.json.\n",
+            "ingestionTime": 1744310521452
+        },
+        {
+            "timestamp": 1744310521430,
+            "message": "Configure a credential helper to remove this warning. See\n",
+            "ingestionTime": 1744310521452
+        },
+        {
+            "timestamp": 1744310521430,
+            "message": "https://docs.docker.com/engine/reference/commandline/login/#credentials-store\n",
+            "ingestionTime": 1744310521452
+        },
+        {
+            "timestamp": 1744310521430,
+            "message": "\n",
+            "ingestionTime": 1744310521452
+        },
+        {
+            "timestamp": 1744310521430,
+            "message": "Login Succeeded\n",
+            "ingestionTime": 1744310521452
+        },
+        {
+            "timestamp": 1744310521430,
+            "message": "\n",
+            "ingestionTime": 1744310521452
+        },
+        {
+            "timestamp": 1744310521430,
+            "message": "[Container] 2025/04/10 18:41:59.766655 Running command REPO_URL=$(echo $CODEBUILD_INITIATOR | cut -d/ -f2)\n",
+            "ingestionTime": 1744310521452
+        },
+        {
+            "timestamp": 1744310521430,
+            "message": "\n",
+            "ingestionTime": 1744310521452
+        },
+        {
+            "timestamp": 1744310521430,
+            "message": "[Container] 2025/04/10 18:41:59.802545 Running command REPO_NAME=$(echo $REPO_URL | cut -d@ -f1)\n",
+            "ingestionTime": 1744310521452
+        },
+        {
+            "timestamp": 1744310521430,
+            "message": "\n",
+            "ingestionTime": 1744310521452
+        },
+        {
+            "timestamp": 1744310521430,
+            "message": "[Container] 2025/04/10 18:41:59.809213 Running command echo \"Repository Name: $REPOSITORY_NAME\"\n",
+            "ingestionTime": 1744310521452
+        },
+        {
+            "timestamp": 1744310521430,
+            "message": "Repository Name: awslabs-mcp\n",
+            "ingestionTime": 1744310521452
+        },
+        {
+            "timestamp": 1744310521430,
+            "message": "\n",
+            "ingestionTime": 1744310521452
+        },
+        {
+            "timestamp": 1744310521430,
+            "message": "[Container] 2025/04/10 18:41:59.814247 Running command echo \"Original Repository Name: $ORIGINAL_REPOSITORY_NAME\"\n",
+            "ingestionTime": 1744310521452
+        },
+        {
+            "timestamp": 1744310521430,
+            "message": "Original Repository Name: awslabs/mcp\n",
+            "ingestionTime": 1744310521452
+        },
+        {
+            "timestamp": 1744310521430,
+            "message": "\n",
+            "ingestionTime": 1744310521452
+        },
+        {
+            "timestamp": 1744310521430,
+            "message": "[Container] 2025/04/10 18:41:59.819087 Running command echo \"Server ID: $SERVER_ID\"\n",
+            "ingestionTime": 1744310521452
+        },
+        {
+            "timestamp": 1744310521430,
+            "message": "Server ID: awslabs/mcp\n",
+            "ingestionTime": 1744310521452
+        },
+        {
+            "timestamp": 1744310521430,
+            "message": "\n",
+            "ingestionTime": 1744310521452
+        },
+        {
+            "timestamp": 1744310521430,
+            "message": "[Container] 2025/04/10 18:41:59.824227 Running command # Create a valid tag by replacing invalid characters\n",
+            "ingestionTime": 1744310521452
+        },
+        {
+            "timestamp": 1744310521430,
+            "message": "\n",
+            "ingestionTime": 1744310521452
+        },
+        {
+            "timestamp": 1744310521430,
+            "message": "[Container] 2025/04/10 18:41:59.828885 Running command CLEAN_REPO_NAME=$(echo $REPOSITORY_NAME | tr '/' '-')\n",
+            "ingestionTime": 1744310521452
+        },
+        {
+            "timestamp": 1744310521430,
+            "message": "\n",
+            "ingestionTime": 1744310521452
+        },
+        {
+            "timestamp": 1744310521430,
+            "message": "[Container] 2025/04/10 18:41:59.836008 Running command BUILD_TAG=${CLEAN_REPO_NAME}-$(date +%Y%m%d%H%M%S)\n",
+            "ingestionTime": 1744310521452
+        },
+        {
+            "timestamp": 1744310521430,
+            "message": "\n",
+            "ingestionTime": 1744310521452
+        },
+        {
+            "timestamp": 1744310521430,
+            "message": "[Container] 2025/04/10 18:41:59.842685 Phase complete: PRE_BUILD State: SUCCEEDED\n",
+            "ingestionTime": 1744310521452
+        },
+        {
+            "timestamp": 1744310521430,
+            "message": "[Container] 2025/04/10 18:41:59.842700 Phase context status code:  Message: \n",
+            "ingestionTime": 1744310521452
+        },
+        {
+            "timestamp": 1744310521430,
+            "message": "[Container] 2025/04/10 18:41:59.879637 Entering phase BUILD\n",
+            "ingestionTime": 1744310521452
+        },
+        {
+            "timestamp": 1744310521430,
+            "message": "[Container] 2025/04/10 18:41:59.880947 Running command echo Cloning repository...\n",
+            "ingestionTime": 1744310521452
+        },
+        {
+            "timestamp": 1744310521430,
+            "message": "Cloning repository...\n",
+            "ingestionTime": 1744310521452
+        },
+        {
+            "timestamp": 1744310521430,
+            "message": "\n",
+            "ingestionTime": 1744310521452
+        },
+        {
+            "timestamp": 1744310521430,
+            "message": "[Container] 2025/04/10 18:41:59.886353 Running command echo \"Using repository: $ORIGINAL_REPOSITORY_NAME\"\n",
+            "ingestionTime": 1744310521452
+        },
+        {
+            "timestamp": 1744310521430,
+            "message": "Using repository: awslabs/mcp\n",
+            "ingestionTime": 1744310521452
+        },
+        {
+            "timestamp": 1744310521430,
+            "message": "\n",
+            "ingestionTime": 1744310521452
+        },
+        {
+            "timestamp": 1744310521430,
+            "message": "[Container] 2025/04/10 18:41:59.891276 Running command # Extract owner and repo from ORIGINAL_REPOSITORY_NAME\n",
+            "ingestionTime": 1744310521452
+        },
+        {
+            "timestamp": 1744310521430,
+            "message": "\n",
+            "ingestionTime": 1744310521452
+        },
+        {
+            "timestamp": 1744310521430,
+            "message": "[Container] 2025/04/10 18:41:59.896238 Running command OWNER=$(echo $ORIGINAL_REPOSITORY_NAME | cut -d/ -f1)\n",
+            "ingestionTime": 1744310521452
+        },
+        {
+            "timestamp": 1744310521430,
+            "message": "\n",
+            "ingestionTime": 1744310521452
+        },
+        {
+            "timestamp": 1744310521430,
+            "message": "[Container] 2025/04/10 18:41:59.902781 Running command REPO=$(echo $ORIGINAL_REPOSITORY_NAME | cut -d/ -f2)\n",
+            "ingestionTime": 1744310521452
+        },
+        {
+            "timestamp": 1744310521430,
+            "message": "\n",
+            "ingestionTime": 1744310521452
+        },
+        {
+            "timestamp": 1744310521430,
+            "message": "[Container] 2025/04/10 18:41:59.909163 Running command if [ -z \"$REPO\" ]; then REPO=$OWNER; OWNER=\"\"; fi\n",
+            "ingestionTime": 1744310521452
+        },
+        {
+            "timestamp": 1744310521430,
+            "message": "\n",
+            "ingestionTime": 1744310521452
+        },
+        {
+            "timestamp": 1744310521430,
+            "message": "[Container] 2025/04/10 18:41:59.914329 Running command echo \"Owner: $OWNER, Repo: $REPO\"\n",
+            "ingestionTime": 1744310521452
+        },
+        {
+            "timestamp": 1744310521430,
+            "message": "Owner: awslabs, Repo: mcp\n",
+            "ingestionTime": 1744310521452
+        },
+        {
+            "timestamp": 1744310521430,
+            "message": "\n",
+            "ingestionTime": 1744310521452
+        },
+        {
+            "timestamp": 1744310521430,
+            "message": "[Container] 2025/04/10 18:41:59.919531 Running command if [ -n \"$OWNER\" ]; then git clone https://$GITHUB_TOKEN@github.com/$OWNER/$REPO.git repo; else git clone https://$GITHUB_TOKEN@github.com/$REPO.git repo; fi\n",
+            "ingestionTime": 1744310521452
+        },
+        {
+            "timestamp": 1744310521430,
+            "message": "Cloning into 'repo'...\n",
+            "ingestionTime": 1744310521452
+        },
+        {
+            "timestamp": 1744310521430,
+            "message": "\n",
+            "ingestionTime": 1744310521452
+        },
+        {
+            "timestamp": 1744310521430,
+            "message": "[Container] 2025/04/10 18:42:01.050909 Running command cd repo\n",
+            "ingestionTime": 1744310521452
+        },
+        {
+            "timestamp": 1744310521430,
+            "message": "\n",
+            "ingestionTime": 1744310521452
+        },
+        {
+            "timestamp": 1744310521430,
+            "message": "[Container] 2025/04/10 18:42:01.056247 Running command echo Building the Docker image...\n",
+            "ingestionTime": 1744310521452
+        },
+        {
+            "timestamp": 1744310521430,
+            "message": "Building the Docker image...\n",
+            "ingestionTime": 1744310521452
+        },
+        {
+            "timestamp": 1744310521430,
+            "message": "\n",
+            "ingestionTime": 1744310521452
+        },
+        {
+            "timestamp": 1744310521430,
+            "message": "[Container] 2025/04/10 18:42:01.061600 Running command docker build -t $REPOSITORY_URI:$BUILD_TAG .\n",
+            "ingestionTime": 1744310521452
+        },
+        {
+            "timestamp": 1744310521430,
+            "message": "unable to prepare context: unable to evaluate symlinks in Dockerfile path: lstat /codebuild/output/src3412568650/src/repo/Dockerfile: no such file or directory\n",
+            "ingestionTime": 1744310521452
+        },
+        {
+            "timestamp": 1744310521430,
+            "message": "\n",
+            "ingestionTime": 1744310521452
+        },
+        {
+            "timestamp": 1744310521430,
+            "message": "[Container] 2025/04/10 18:42:01.080900 Command did not exit successfully docker build -t $REPOSITORY_URI:$BUILD_TAG . exit status 1\n",
+            "ingestionTime": 1744310521452
+        },
+        {
+            "timestamp": 1744310521430,
+            "message": "[Container] 2025/04/10 18:42:01.085783 Phase complete: BUILD State: FAILED\n",
+            "ingestionTime": 1744310521452
+        },
+        {
+            "timestamp": 1744310521430,
+            "message": "[Container] 2025/04/10 18:42:01.085803 Phase context status code: COMMAND_EXECUTION_ERROR Message: Error while executing command: docker build -t $REPOSITORY_URI:$BUILD_TAG .. Reason: exit status 1\n",
+            "ingestionTime": 1744310521452
+        },
+        {
+            "timestamp": 1744310521430,
+            "message": "[Container] 2025/04/10 18:42:01.123177 Entering phase POST_BUILD\n",
+            "ingestionTime": 1744310521452
+        },
+        {
+            "timestamp": 1744310521430,
+            "message": "[Container] 2025/04/10 18:42:01.124500 Running command echo Pushing the Docker image...\n",
+            "ingestionTime": 1744310521452
+        },
+        {
+            "timestamp": 1744310521430,
+            "message": "Pushing the Docker image...\n",
+            "ingestionTime": 1744310521452
+        },
+        {
+            "timestamp": 1744310521430,
+            "message": "\n",
+            "ingestionTime": 1744310521452
+        },
+        {
+            "timestamp": 1744310521430,
+            "message": "[Container] 2025/04/10 18:42:01.130441 Running command docker push $REPOSITORY_URI:$BUILD_TAG\n",
+            "ingestionTime": 1744310521452
+        },
+        {
+            "timestamp": 1744310521430,
+            "message": "The push refers to repository [277502524328.dkr.ecr.us-east-1.amazonaws.com/toolshed-mcp-servers-v2]\n",
+            "ingestionTime": 1744310521452
+        },
+        {
+            "timestamp": 1744310521430,
+            "message": "An image does not exist locally with the tag: 277502524328.dkr.ecr.us-east-1.amazonaws.com/toolshed-mcp-servers-v2\n",
+            "ingestionTime": 1744310521452
+        },
+        {
+            "timestamp": 1744310521430,
+            "message": "\n",
+            "ingestionTime": 1744310521452
+        },
+        {
+            "timestamp": 1744310521430,
+            "message": "[Container] 2025/04/10 18:42:01.152775 Command did not exit successfully docker push $REPOSITORY_URI:$BUILD_TAG exit status 1\n",
+            "ingestionTime": 1744310521452
+        },
+        {
+            "timestamp": 1744310521430,
+            "message": "[Container] 2025/04/10 18:42:01.157844 Phase complete: POST_BUILD State: FAILED\n",
+            "ingestionTime": 1744310521452
+        },
+        {
+            "timestamp": 1744310521430,
+            "message": "[Container] 2025/04/10 18:42:01.157865 Phase context status code: COMMAND_EXECUTION_ERROR Message: Error while executing command: docker push $REPOSITORY_URI:$BUILD_TAG. Reason: exit status 1\n",
+            "ingestionTime": 1744310521452
+        },
+        {
+            "timestamp": 1744310521430,
+            "message": "[Container] 2025/04/10 18:42:01.250033 Set report auto-discover timeout to 5 seconds\n",
+            "ingestionTime": 1744310521452
+        },
+        {
+            "timestamp": 1744310521430,
+            "message": "[Container] 2025/04/10 18:42:01.250062 Expanding base directory path:  .\n",
+            "ingestionTime": 1744310521452
+        },
+        {
+            "timestamp": 1744310521430,
+            "message": "[Container] 2025/04/10 18:42:01.253435 Assembling file list\n",
+            "ingestionTime": 1744310521452
+        },
+        {
+            "timestamp": 1744310521430,
+            "message": "[Container] 2025/04/10 18:42:01.253455 Expanding .\n",
+            "ingestionTime": 1744310521452
+        },
+        {
+            "timestamp": 1744310521430,
+            "message": "[Container] 2025/04/10 18:42:01.256562 Expanding file paths for base directory .\n",
+            "ingestionTime": 1744310521452
+        },
+        {
+            "timestamp": 1744310521430,
+            "message": "[Container] 2025/04/10 18:42:01.256580 Assembling file list\n",
+            "ingestionTime": 1744310521452
+        },
+        {
+            "timestamp": 1744310521430,
+            "message": "[Container] 2025/04/10 18:42:01.256584 Expanding **/*\n",
+            "ingestionTime": 1744310521452
+        },
+        {
+            "timestamp": 1744310521430,
+            "message": "[Container] 2025/04/10 18:42:01.260657 No matching auto-discover report paths found\n",
+            "ingestionTime": 1744310521452
+        },
+        {
+            "timestamp": 1744310521430,
+            "message": "[Container] 2025/04/10 18:42:01.260681 Report auto-discover file discovery took 0.010649 seconds\n",
+            "ingestionTime": 1744310521452
+        },
+        {
+            "timestamp": 1744310521430,
+            "message": "[Container] 2025/04/10 18:42:01.260695 Phase complete: UPLOAD_ARTIFACTS State: SUCCEEDED\n",
+            "ingestionTime": 1744310521452
+        },
+        {
+            "timestamp": 1744310521430,
+            "message": "[Container] 2025/04/10 18:42:01.260815 Phase context status code:  Message: \n",
+            "ingestionTime": 1744310521452
+        }
+    ],
+    "nextForwardToken": "f/38899424485526520123943735457941776570967735487749161040/s",
+    "nextBackwardToken": "b/38899424174252718642853297631516095687885262555432878080/s"
+}

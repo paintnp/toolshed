@@ -1,0 +1,88 @@
+{
+    "events": [
+        {
+            "timestamp": "2025-04-10T13:04:02.020000-04:00",
+            "type": "ExecutionStarted",
+            "id": 1,
+            "previousEventId": 0,
+            "executionStartedEventDetails": {
+                "input": "{\"serverId\":\"github/github-mcp-server\",\"repositoryName\":\"github/github-mcp-server\"}",
+                "inputDetails": {
+                    "truncated": false
+                },
+                "roleArn": "arn:aws:iam::277502524328:role/ValidationPipelineStack-ValidationPipelineRole502F3-fK8hlMU6Wb12"
+            }
+        },
+        {
+            "timestamp": "2025-04-10T13:04:02.054000-04:00",
+            "type": "TaskStateEntered",
+            "id": 2,
+            "previousEventId": 0,
+            "stateEnteredEventDetails": {
+                "name": "BuildMCPServerImage",
+                "input": "{\"serverId\":\"github/github-mcp-server\",\"repositoryName\":\"github/github-mcp-server\"}",
+                "inputDetails": {
+                    "truncated": false
+                }
+            }
+        },
+        {
+            "timestamp": "2025-04-10T13:04:02.054000-04:00",
+            "type": "TaskScheduled",
+            "id": 3,
+            "previousEventId": 2,
+            "taskScheduledEventDetails": {
+                "resourceType": "codebuild",
+                "resource": "startBuild.sync",
+                "region": "us-east-1",
+                "parameters": "{\"ProjectName\":\"ToolShed-MCP-Server-Build\",\"EnvironmentVariablesOverride\":[{\"Name\":\"REPOSITORY_NAME\",\"Type\":\"PLAINTEXT\",\"Value\":\"github/github-mcp-server\"}]}"
+            }
+        },
+        {
+            "timestamp": "2025-04-10T13:04:02.130000-04:00",
+            "type": "TaskStarted",
+            "id": 4,
+            "previousEventId": 3,
+            "taskStartedEventDetails": {
+                "resourceType": "codebuild",
+                "resource": "startBuild.sync"
+            }
+        },
+        {
+            "timestamp": "2025-04-10T13:04:02.416000-04:00",
+            "type": "TaskSubmitted",
+            "id": 5,
+            "previousEventId": 4,
+            "taskSubmittedEventDetails": {
+                "resourceType": "codebuild",
+                "resource": "startBuild.sync",
+                "output": "{\"Build\":{\"Arn\":\"arn:aws:codebuild:us-east-1:277502524328:build/ToolShed-MCP-Server-Build:0a001b40-ebe5-4e46-b1a3-8b6522ed543b\",\"Artifacts\":{\"Location\":\"\"},\"BuildComplete\":false,\"BuildNumber\":2,\"BuildStatus\":\"IN_PROGRESS\",\"Cache\":{\"Type\":\"NO_CACHE\"},\"CurrentPhase\":\"QUEUED\",\"EncryptionKey\":\"arn:aws:kms:us-east-1:277502524328:alias/aws/s3\",\"Environment\":{\"ComputeType\":\"BUILD_GENERAL1_SMALL\",\"EnvironmentVariables\":[{\"Name\":\"GITHUB_TOKEN\",\"Type\":\"SECRETS_MANAGER\",\"Value\":\"arn:aws:secretsmanager:us-east-1:277502524328:secret:toolshed/github-token\"},{\"Name\":\"REPOSITORY_URI\",\"Type\":\"PLAINTEXT\",\"Value\":\"277502524328.dkr.ecr.us-east-1.amazonaws.com/toolshed-mcp-servers-v2\"},{\"Name\":\"REPOSITORY_NAME\",\"Type\":\"PLAINTEXT\",\"Value\":\"github/github-mcp-server\"}],\"Image\":\"aws/codebuild/amazonlinux2-x86_64-standard:4.0\",\"ImagePullCredentialsType\":\"CODEBUILD\",\"PrivilegedMode\":true,\"Type\":\"LINUX_CONTAINER\"},\"Id\":\"ToolShed-MCP-Server-Build:0a001b40-ebe5-4e46-b1a3-8b6522ed543b\",\"Initiator\":\"states/ToolShed-MCP-Server-Validation-Pipeline\",\"Logs\":{\"CloudWatchLogsArn\":\"arn:aws:logs:us-east-1:277502524328:log-group:null:log-stream:null\",\"DeepLink\":\"https://console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups\"},\"Phases\":[{\"DurationInSeconds\":0,\"EndTime\":1744304642373,\"PhaseStatus\":\"SUCCEEDED\",\"PhaseType\":\"SUBMITTED\",\"StartTime\":1744304642288},{\"PhaseType\":\"QUEUED\",\"StartTime\":1744304642373}],\"ProjectName\":\"ToolShed-MCP-Server-Build\",\"QueuedTimeoutInMinutes\":480,\"SecondarySourceVersions\":[],\"SecondarySources\":[],\"ServiceRole\":\"arn:aws:iam::277502524328:role/ValidationPipelineStack-MCPServerBuildRole28056180-QgnBphIXID5C\",\"Source\":{\"Buildspec\":\"{\\n  \\\"version\\\": \\\"0.2\\\",\\n  \\\"phases\\\": {\\n    \\\"pre_build\\\": {\\n      \\\"commands\\\": [\\n        \\\"echo Logging in to Amazon ECR...\\\",\\n        \\\"aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $REPOSITORY_URI\\\",\\n        \\\"REPO_URL=$(echo $CODEBUILD_INITIATOR | cut -d/ -f2)\\\",\\n        \\\"REPO_NAME=$(echo $REPO_URL | cut -d@ -f1)\\\",\\n        \\\"IMAGE_TAG=${REPOSITORY_NAME}:${CODEBUILD_RESOLVED_SOURCE_VERSION}\\\"\\n      ]\\n    },\\n    \\\"build\\\": {\\n      \\\"commands\\\": [\\n        \\\"echo Cloning repository...\\\",\\n        \\\"git clone https://$GITHUB_TOKEN@github.com/$REPOSITORY_NAME.git repo\\\",\\n        \\\"cd repo\\\",\\n        \\\"echo Building the Docker image...\\\",\\n        \\\"docker build -t $REPOSITORY_URI:$IMAGE_TAG .\\\",\\n        \\\"docker tag $REPOSITORY_URI:$IMAGE_TAG $REPOSITORY_URI:latest\\\"\\n      ]\\n    },\\n    \\\"post_build\\\": {\\n      \\\"commands\\\": [\\n        \\\"echo Pushing the Docker image...\\\",\\n        \\\"docker push $REPOSITORY_URI:$IMAGE_TAG\\\",\\n        \\\"docker push $REPOSITORY_URI:latest\\\",\\n        \\\"echo Writing image definition file...\\\",\\n        \\\"echo \\\\\\\"{\\\\\\\"imageUri\\\\\\\":\\\\\\\"$REPOSITORY_URI:$IMAGE_TAG\\\\\\\"}\\\\\\\" > imageDefinition.json\\\"\\n      ]\\n    }\\n  },\\n  \\\"artifacts\\\": {\\n    \\\"files\\\": [\\n      \\\"imageDefinition.json\\\"\\n    ]\\n  }\\n}\",\"InsecureSsl\":false,\"Type\":\"NO_SOURCE\"},\"StartTime\":1744304642288,\"TimeoutInMinutes\":60},\"SdkHttpMetadata\":{\"AllHttpHeaders\":{\"x-amzn-RequestId\":[\"bd304f2e-c0fe-4841-81aa-7498ff4ad25d\"],\"Content-Length\":[\"3117\"],\"Date\":[\"Thu, 10 Apr 2025 17:04:01 GMT\"],\"Content-Type\":[\"application/x-amz-json-1.1\"]},\"HttpHeaders\":{\"Content-Length\":\"3117\",\"Content-Type\":\"application/x-amz-json-1.1\",\"Date\":\"Thu, 10 Apr 2025 17:04:01 GMT\",\"x-amzn-RequestId\":\"bd304f2e-c0fe-4841-81aa-7498ff4ad25d\"},\"HttpStatusCode\":200},\"SdkResponseMetadata\":{\"RequestId\":\"bd304f2e-c0fe-4841-81aa-7498ff4ad25d\"}}",
+                "outputDetails": {
+                    "truncated": false
+                }
+            }
+        },
+        {
+            "timestamp": "2025-04-10T13:04:16.880000-04:00",
+            "type": "TaskFailed",
+            "id": 6,
+            "previousEventId": 5,
+            "taskFailedEventDetails": {
+                "resourceType": "codebuild",
+                "resource": "startBuild.sync",
+                "error": "States.TaskFailed",
+                "cause": "{\"SdkHttpMetadata\":{\"AllHttpHeaders\":{\"x-amzn-RequestId\":[\"ee7cecb6-822a-4b33-867c-0945c2bb4609\"],\"Content-Length\":[\"4205\"],\"Date\":[\"Thu, 10 Apr 2025 17:04:16 GMT\"],\"Content-Type\":[\"application/x-amz-json-1.1\"]},\"HttpHeaders\":{\"Content-Length\":\"4205\",\"Content-Type\":\"application/x-amz-json-1.1\",\"Date\":\"Thu, 10 Apr 2025 17:04:16 GMT\",\"x-amzn-RequestId\":\"ee7cecb6-822a-4b33-867c-0945c2bb4609\"},\"HttpStatusCode\":200},\"SdkResponseMetadata\":{\"RequestId\":\"ee7cecb6-822a-4b33-867c-0945c2bb4609\"},\"Build\":{\"Arn\":\"arn:aws:codebuild:us-east-1:277502524328:build/ToolShed-MCP-Server-Build:0a001b40-ebe5-4e46-b1a3-8b6522ed543b\",\"Artifacts\":{\"Location\":\"\"},\"BuildComplete\":true,\"BuildNumber\":2,\"BuildStatus\":\"FAILED\",\"Cache\":{\"Type\":\"NO_CACHE\"},\"CurrentPhase\":\"COMPLETED\",\"EncryptionKey\":\"arn:aws:kms:us-east-1:277502524328:alias/aws/s3\",\"EndTime\":1744304650384,\"Environment\":{\"ComputeType\":\"BUILD_GENERAL1_SMALL\",\"EnvironmentVariables\":[{\"Name\":\"GITHUB_TOKEN\",\"Type\":\"SECRETS_MANAGER\",\"Value\":\"arn:aws:secretsmanager:us-east-1:277502524328:secret:toolshed/github-token\"},{\"Name\":\"REPOSITORY_URI\",\"Type\":\"PLAINTEXT\",\"Value\":\"277502524328.dkr.ecr.us-east-1.amazonaws.com/toolshed-mcp-servers-v2\"},{\"Name\":\"REPOSITORY_NAME\",\"Type\":\"PLAINTEXT\",\"Value\":\"github/github-mcp-server\"}],\"Image\":\"aws/codebuild/amazonlinux2-x86_64-standard:4.0\",\"ImagePullCredentialsType\":\"CODEBUILD\",\"PrivilegedMode\":true,\"Type\":\"LINUX_CONTAINER\"},\"Id\":\"ToolShed-MCP-Server-Build:0a001b40-ebe5-4e46-b1a3-8b6522ed543b\",\"Initiator\":\"states/ToolShed-MCP-Server-Validation-Pipeline\",\"Logs\":{\"CloudWatchLogsArn\":\"arn:aws:logs:us-east-1:277502524328:log-group:/aws/codebuild/ToolShed-MCP-Server-Build:log-stream:0a001b40-ebe5-4e46-b1a3-8b6522ed543b\",\"DeepLink\":\"https://console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Fcodebuild$252FToolShed-MCP-Server-Build/log-events/0a001b40-ebe5-4e46-b1a3-8b6522ed543b\",\"GroupName\":\"/aws/codebuild/ToolShed-MCP-Server-Build\",\"StreamName\":\"0a001b40-ebe5-4e46-b1a3-8b6522ed543b\"},\"Phases\":[{\"DurationInSeconds\":0,\"EndTime\":1744304642373,\"PhaseStatus\":\"SUCCEEDED\",\"PhaseType\":\"SUBMITTED\",\"StartTime\":1744304642288},{\"DurationInSeconds\":0,\"EndTime\":1744304642985,\"PhaseStatus\":\"SUCCEEDED\",\"PhaseType\":\"QUEUED\",\"StartTime\":1744304642373},{\"Contexts\":[{\"Message\":\"\",\"StatusCode\":\"\"}],\"DurationInSeconds\":6,\"EndTime\":1744304649342,\"PhaseStatus\":\"SUCCEEDED\",\"PhaseType\":\"PROVISIONING\",\"StartTime\":1744304642985},{\"Contexts\":[{\"Message\":\"ResourceNotFoundException: Secrets Manager can't find the specified secret.\",\"StatusCode\":\"Secrets Manager Error\"}],\"DurationInSeconds\":0,\"EndTime\":1744304649957,\"PhaseStatus\":\"FAILED\",\"PhaseType\":\"DOWNLOAD_SOURCE\",\"StartTime\":1744304649342},{\"Contexts\":[{\"Message\":\"\",\"StatusCode\":\"\"}],\"DurationInSeconds\":0,\"EndTime\":1744304650384,\"PhaseStatus\":\"SUCCEEDED\",\"PhaseType\":\"FINALIZING\",\"StartTime\":1744304649957},{\"PhaseType\":\"COMPLETED\",\"StartTime\":1744304650384}],\"ProjectName\":\"ToolShed-MCP-Server-Build\",\"QueuedTimeoutInMinutes\":480,\"SecondarySourceVersions\":[],\"SecondarySources\":[],\"ServiceRole\":\"arn:aws:iam::277502524328:role/ValidationPipelineStack-MCPServerBuildRole28056180-QgnBphIXID5C\",\"Source\":{\"Buildspec\":\"{\\n  \\\"version\\\": \\\"0.2\\\",\\n  \\\"phases\\\": {\\n    \\\"pre_build\\\": {\\n      \\\"commands\\\": [\\n        \\\"echo Logging in to Amazon ECR...\\\",\\n        \\\"aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $REPOSITORY_URI\\\",\\n        \\\"REPO_URL=$(echo $CODEBUILD_INITIATOR | cut -d/ -f2)\\\",\\n        \\\"REPO_NAME=$(echo $REPO_URL | cut -d@ -f1)\\\",\\n        \\\"IMAGE_TAG=${REPOSITORY_NAME}:${CODEBUILD_RESOLVED_SOURCE_VERSION}\\\"\\n      ]\\n    },\\n    \\\"build\\\": {\\n      \\\"commands\\\": [\\n        \\\"echo Cloning repository...\\\",\\n        \\\"git clone https://$GITHUB_TOKEN@github.com/$REPOSITORY_NAME.git repo\\\",\\n        \\\"cd repo\\\",\\n        \\\"echo Building the Docker image...\\\",\\n        \\\"docker build -t $REPOSITORY_URI:$IMAGE_TAG .\\\",\\n        \\\"docker tag $REPOSITORY_URI:$IMAGE_TAG $REPOSITORY_URI:latest\\\"\\n      ]\\n    },\\n    \\\"post_build\\\": {\\n      \\\"commands\\\": [\\n        \\\"echo Pushing the Docker image...\\\",\\n        \\\"docker push $REPOSITORY_URI:$IMAGE_TAG\\\",\\n        \\\"docker push $REPOSITORY_URI:latest\\\",\\n        \\\"echo Writing image definition file...\\\",\\n        \\\"echo \\\\\\\"{\\\\\\\"imageUri\\\\\\\":\\\\\\\"$REPOSITORY_URI:$IMAGE_TAG\\\\\\\"}\\\\\\\" > imageDefinition.json\\\"\\n      ]\\n    }\\n  },\\n  \\\"artifacts\\\": {\\n    \\\"files\\\": [\\n      \\\"imageDefinition.json\\\"\\n    ]\\n  }\\n}\",\"InsecureSsl\":false,\"Type\":\"NO_SOURCE\"},\"StartTime\":1744304642288,\"TimeoutInMinutes\":60}}"
+            }
+        },
+        {
+            "timestamp": "2025-04-10T13:04:16.941000-04:00",
+            "type": "ExecutionFailed",
+            "id": 7,
+            "previousEventId": 6,
+            "executionFailedEventDetails": {
+                "error": "States.TaskFailed",
+                "cause": "{\"SdkHttpMetadata\":{\"AllHttpHeaders\":{\"x-amzn-RequestId\":[\"ee7cecb6-822a-4b33-867c-0945c2bb4609\"],\"Content-Length\":[\"4205\"],\"Date\":[\"Thu, 10 Apr 2025 17:04:16 GMT\"],\"Content-Type\":[\"application/x-amz-json-1.1\"]},\"HttpHeaders\":{\"Content-Length\":\"4205\",\"Content-Type\":\"application/x-amz-json-1.1\",\"Date\":\"Thu, 10 Apr 2025 17:04:16 GMT\",\"x-amzn-RequestId\":\"ee7cecb6-822a-4b33-867c-0945c2bb4609\"},\"HttpStatusCode\":200},\"SdkResponseMetadata\":{\"RequestId\":\"ee7cecb6-822a-4b33-867c-0945c2bb4609\"},\"Build\":{\"Arn\":\"arn:aws:codebuild:us-east-1:277502524328:build/ToolShed-MCP-Server-Build:0a001b40-ebe5-4e46-b1a3-8b6522ed543b\",\"Artifacts\":{\"Location\":\"\"},\"BuildComplete\":true,\"BuildNumber\":2,\"BuildStatus\":\"FAILED\",\"Cache\":{\"Type\":\"NO_CACHE\"},\"CurrentPhase\":\"COMPLETED\",\"EncryptionKey\":\"arn:aws:kms:us-east-1:277502524328:alias/aws/s3\",\"EndTime\":1744304650384,\"Environment\":{\"ComputeType\":\"BUILD_GENERAL1_SMALL\",\"EnvironmentVariables\":[{\"Name\":\"GITHUB_TOKEN\",\"Type\":\"SECRETS_MANAGER\",\"Value\":\"arn:aws:secretsmanager:us-east-1:277502524328:secret:toolshed/github-token\"},{\"Name\":\"REPOSITORY_URI\",\"Type\":\"PLAINTEXT\",\"Value\":\"277502524328.dkr.ecr.us-east-1.amazonaws.com/toolshed-mcp-servers-v2\"},{\"Name\":\"REPOSITORY_NAME\",\"Type\":\"PLAINTEXT\",\"Value\":\"github/github-mcp-server\"}],\"Image\":\"aws/codebuild/amazonlinux2-x86_64-standard:4.0\",\"ImagePullCredentialsType\":\"CODEBUILD\",\"PrivilegedMode\":true,\"Type\":\"LINUX_CONTAINER\"},\"Id\":\"ToolShed-MCP-Server-Build:0a001b40-ebe5-4e46-b1a3-8b6522ed543b\",\"Initiator\":\"states/ToolShed-MCP-Server-Validation-Pipeline\",\"Logs\":{\"CloudWatchLogsArn\":\"arn:aws:logs:us-east-1:277502524328:log-group:/aws/codebuild/ToolShed-MCP-Server-Build:log-stream:0a001b40-ebe5-4e46-b1a3-8b6522ed543b\",\"DeepLink\":\"https://console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Fcodebuild$252FToolShed-MCP-Server-Build/log-events/0a001b40-ebe5-4e46-b1a3-8b6522ed543b\",\"GroupName\":\"/aws/codebuild/ToolShed-MCP-Server-Build\",\"StreamName\":\"0a001b40-ebe5-4e46-b1a3-8b6522ed543b\"},\"Phases\":[{\"DurationInSeconds\":0,\"EndTime\":1744304642373,\"PhaseStatus\":\"SUCCEEDED\",\"PhaseType\":\"SUBMITTED\",\"StartTime\":1744304642288},{\"DurationInSeconds\":0,\"EndTime\":1744304642985,\"PhaseStatus\":\"SUCCEEDED\",\"PhaseType\":\"QUEUED\",\"StartTime\":1744304642373},{\"Contexts\":[{\"Message\":\"\",\"StatusCode\":\"\"}],\"DurationInSeconds\":6,\"EndTime\":1744304649342,\"PhaseStatus\":\"SUCCEEDED\",\"PhaseType\":\"PROVISIONING\",\"StartTime\":1744304642985},{\"Contexts\":[{\"Message\":\"ResourceNotFoundException: Secrets Manager can't find the specified secret.\",\"StatusCode\":\"Secrets Manager Error\"}],\"DurationInSeconds\":0,\"EndTime\":1744304649957,\"PhaseStatus\":\"FAILED\",\"PhaseType\":\"DOWNLOAD_SOURCE\",\"StartTime\":1744304649342},{\"Contexts\":[{\"Message\":\"\",\"StatusCode\":\"\"}],\"DurationInSeconds\":0,\"EndTime\":1744304650384,\"PhaseStatus\":\"SUCCEEDED\",\"PhaseType\":\"FINALIZING\",\"StartTime\":1744304649957},{\"PhaseType\":\"COMPLETED\",\"StartTime\":1744304650384}],\"ProjectName\":\"ToolShed-MCP-Server-Build\",\"QueuedTimeoutInMinutes\":480,\"SecondarySourceVersions\":[],\"SecondarySources\":[],\"ServiceRole\":\"arn:aws:iam::277502524328:role/ValidationPipelineStack-MCPServerBuildRole28056180-QgnBphIXID5C\",\"Source\":{\"Buildspec\":\"{\\n  \\\"version\\\": \\\"0.2\\\",\\n  \\\"phases\\\": {\\n    \\\"pre_build\\\": {\\n      \\\"commands\\\": [\\n        \\\"echo Logging in to Amazon ECR...\\\",\\n        \\\"aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $REPOSITORY_URI\\\",\\n        \\\"REPO_URL=$(echo $CODEBUILD_INITIATOR | cut -d/ -f2)\\\",\\n        \\\"REPO_NAME=$(echo $REPO_URL | cut -d@ -f1)\\\",\\n        \\\"IMAGE_TAG=${REPOSITORY_NAME}:${CODEBUILD_RESOLVED_SOURCE_VERSION}\\\"\\n      ]\\n    },\\n    \\\"build\\\": {\\n      \\\"commands\\\": [\\n        \\\"echo Cloning repository...\\\",\\n        \\\"git clone https://$GITHUB_TOKEN@github.com/$REPOSITORY_NAME.git repo\\\",\\n        \\\"cd repo\\\",\\n        \\\"echo Building the Docker image...\\\",\\n        \\\"docker build -t $REPOSITORY_URI:$IMAGE_TAG .\\\",\\n        \\\"docker tag $REPOSITORY_URI:$IMAGE_TAG $REPOSITORY_URI:latest\\\"\\n      ]\\n    },\\n    \\\"post_build\\\": {\\n      \\\"commands\\\": [\\n        \\\"echo Pushing the Docker image...\\\",\\n        \\\"docker push $REPOSITORY_URI:$IMAGE_TAG\\\",\\n        \\\"docker push $REPOSITORY_URI:latest\\\",\\n        \\\"echo Writing image definition file...\\\",\\n        \\\"echo \\\\\\\"{\\\\\\\"imageUri\\\\\\\":\\\\\\\"$REPOSITORY_URI:$IMAGE_TAG\\\\\\\"}\\\\\\\" > imageDefinition.json\\\"\\n      ]\\n    }\\n  },\\n  \\\"artifacts\\\": {\\n    \\\"files\\\": [\\n      \\\"imageDefinition.json\\\"\\n    ]\\n  }\\n}\",\"InsecureSsl\":false,\"Type\":\"NO_SOURCE\"},\"StartTime\":1744304642288,\"TimeoutInMinutes\":60}}"
+            }
+        }
+    ]
+}

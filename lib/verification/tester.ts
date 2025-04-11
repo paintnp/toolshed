@@ -76,12 +76,33 @@ async function testServerConnection(endpoint: string): Promise<boolean> {
     // Remove trailing slash if present
     const cleanEndpoint = endpoint.endsWith('/') ? endpoint.slice(0, -1) : endpoint;
     
-    // Try to connect to the server
-    const response = await axios.get(`${cleanEndpoint}/`, {
-      timeout: 5000 // 5 second timeout
-    });
+    console.log(`Starting connection tests to ${cleanEndpoint}/`);
     
-    return response.status === 200;
+    // Try to connect to the server with multiple retries
+    let connected = false;
+    let retries = 0;
+    const maxRetries = 15; // Increased retries
+    
+    while (!connected && retries < maxRetries) {
+      retries++;
+      try {
+        console.log(`Connection attempt ${retries}/${maxRetries} to ${cleanEndpoint}/`);
+        const response = await axios.get(`${cleanEndpoint}/`, {
+          timeout: 15000 // 15 second timeout (increased)
+        });
+        
+        if (response.status === 200) {
+          console.log(`Successfully connected to MCP server at ${cleanEndpoint}/`);
+          connected = true;
+          break;
+        }
+      } catch (error) {
+        console.log(`Connection attempt ${retries} failed, waiting before retry...`);
+        await new Promise(resolve => setTimeout(resolve, 10000)); // Wait 10 seconds between retries (increased)
+      }
+    }
+    
+    return connected;
   } catch (error) {
     console.error(`Failed to connect to MCP server at ${endpoint}:`, error);
     return false;
@@ -315,18 +336,18 @@ export async function verifyServer(
       
       console.log(`Container launched at ${endpoint}`);
       
-      // Wait for container to start properly
-      console.log('Waiting 5 seconds for container to initialize...');
-      await new Promise(resolve => setTimeout(resolve, 5000));
+      // ALBs take time to fully initialize, wait longer
+      console.log('Waiting for ALB to initialize (120 seconds)...');
+      await new Promise(resolve => setTimeout(resolve, 120000)); // Wait 2 minutes for ALB to fully initialize
     }
     
     // Test server connection
     const isConnected = await testServerConnection(endpoint);
     if (!isConnected) {
-      verifiedServer.status = 'Failed to connect to server';
+      verifiedServer.status = 'Failed to connect to server via ALB';
       
-      // Stop container if we launched it
       if (launchedContainer && taskArn) {
+        console.log(`Stopping failed task: ${taskArn}`);
         await stopContainer(taskArn);
       }
       

@@ -1,0 +1,22 @@
+#!/bin/bash
+
+echo "==================================================================="
+echo "AWS CLI COMMAND IS FAILING DUE TO ESCAPING ISSUES"
+echo "==================================================================="
+echo ""
+echo "To fix the CodeBuild project, please follow these manual steps:"
+echo ""
+echo "1. Go to the AWS Console: https://console.aws.amazon.com/codesuite/codebuild/projects"
+echo "2. Find and click on the 'ToolShed-MCP-Server-Build' project"
+echo "3. Click 'Edit' and then select 'Buildspec'"
+echo "4. Select 'Insert build commands'"
+echo "5. Replace the content with the following:"
+echo ""
+echo "========================= [COPY FROM HERE] ========================="
+cat fix-buildspec.json
+echo "========================== [TO HERE] ============================="
+echo ""
+echo "6. Click 'Update buildspec'"
+echo "7. Click 'Update'"
+echo ""
+echo "After updating through the AWS Console, try the validation again." 

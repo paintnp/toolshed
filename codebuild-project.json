@@ -1,0 +1,72 @@
+{
+    "projects": [
+        {
+            "name": "ToolShed-MCP-Server-Build",
+            "arn": "arn:aws:codebuild:us-east-1:277502524328:project/ToolShed-MCP-Server-Build",
+            "description": "Builds Docker images for MCP servers",
+            "source": {
+                "type": "NO_SOURCE",
+                "buildspec": "{\n  \"version\": \"0.2\",\n  \"phases\": {\n    \"pre_build\": {\n      \"commands\": [\n        \"echo Logging in to Amazon ECR...\",\n        \"aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $REPOSITORY_URI\",\n        \"REPO_URL=$(echo $CODEBUILD_INITIATOR | cut -d/ -f2)\",\n        \"REPO_NAME=$(echo $REPO_URL | cut -d@ -f1)\",\n        \"IMAGE_TAG=${REPOSITORY_NAME}:${CODEBUILD_RESOLVED_SOURCE_VERSION}\"\n      ]\n    },\n    \"build\": {\n      \"commands\": [\n        \"echo Cloning repository...\",\n        \"git clone https://$GITHUB_TOKEN@github.com/$REPOSITORY_NAME.git repo\",\n        \"cd repo\",\n        \"echo Building the Docker image...\",\n        \"docker build -t $REPOSITORY_URI:$IMAGE_TAG .\",\n        \"docker tag $REPOSITORY_URI:$IMAGE_TAG $REPOSITORY_URI:latest\"\n      ]\n    },\n    \"post_build\": {\n      \"commands\": [\n        \"echo Pushing the Docker image...\",\n        \"docker push $REPOSITORY_URI:$IMAGE_TAG\",\n        \"docker push $REPOSITORY_URI:latest\",\n        \"echo Writing image definition file...\",\n        \"echo \\\"{\\\"imageUri\\\":\\\"$REPOSITORY_URI:$IMAGE_TAG\\\"}\\\" > imageDefinition.json\"\n      ]\n    }\n  },\n  \"artifacts\": {\n    \"files\": [\n      \"imageDefinition.json\"\n    ]\n  }\n}",
+                "insecureSsl": false
+            },
+            "artifacts": {
+                "type": "NO_ARTIFACTS"
+            },
+            "cache": {
+                "type": "NO_CACHE"
+            },
+            "environment": {
+                "type": "LINUX_CONTAINER",
+                "image": "aws/codebuild/amazonlinux2-x86_64-standard:4.0",
+                "computeType": "BUILD_GENERAL1_SMALL",
+                "environmentVariables": [
+                    {
+                        "name": "REPOSITORY_URI",
+                        "value": "277502524328.dkr.ecr.us-east-1.amazonaws.com/toolshed-mcp-servers-v2",
+                        "type": "PLAINTEXT"
+                    },
+                    {
+                        "name": "GITHUB_TOKEN",
+                        "value": "arn:aws:secretsmanager:us-east-1:277502524328:secret:toolshed/github-token",
+                        "type": "SECRETS_MANAGER"
+                    }
+                ],
+                "privilegedMode": true,
+                "imagePullCredentialsType": "CODEBUILD"
+            },
+            "serviceRole": "arn:aws:iam::277502524328:role/ValidationPipelineStack-MCPServerBuildRole28056180-QgnBphIXID5C",
+            "timeoutInMinutes": 60,
+            "queuedTimeoutInMinutes": 480,
+            "encryptionKey": "arn:aws:kms:us-east-1:277502524328:alias/aws/s3",
+            "tags": [
+                {
+                    "key": "aws:cloudformation:stack-name",
+                    "value": "ValidationPipelineStack"
+                },
+                {
+                    "key": "aws:cloudformation:logical-id",
+                    "value": "MCPServerBuild453D3FD6"
+                },
+                {
+                    "key": "Project",
+                    "value": "ToolShed"
+                },
+                {
+                    "key": "Component",
+                    "value": "ValidationPipeline"
+                },
+                {
+                    "key": "aws:cloudformation:stack-id",
+                    "value": "arn:aws:cloudformation:us-east-1:277502524328:stack/ValidationPipelineStack/4dd65050-1624-11f0-baa4-0e3ef2e3d071"
+                }
+            ],
+            "created": "2025-04-10T11:56:33.723000-04:00",
+            "lastModified": "2025-04-10T11:56:33.723000-04:00",
+            "badge": {
+                "badgeEnabled": false
+            },
+            "projectVisibility": "PRIVATE"
+        }
+    ],
+    "projectsNotFound": []
+}

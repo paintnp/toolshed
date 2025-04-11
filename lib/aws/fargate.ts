@@ -15,6 +15,8 @@ import {
   CreateLogGroupCommand,
   DescribeLogGroupsCommand
 } from "@aws-sdk/client-cloudwatch-logs";
+import { SFNClient, StartExecutionCommand, DescribeExecutionCommand } from "@aws-sdk/client-sfn";
+import { ServerRecord } from '../db/dynamodb';
 
 // Load environment variables from .env.local
 import dotenv from 'dotenv';
@@ -33,6 +35,7 @@ const DEFAULT_CONFIG = {
   cpu: '512',  // 0.5 vCPU
   memory: '1024', // 1GB RAM
   assignPublicIp: AssignPublicIp.ENABLED as AssignPublicIp, // We need to connect to the server from outside
+  validationStateMachineArn: process.env.VALIDATION_STATE_MACHINE_ARN || '',
 };
 
 // Create ECS client
@@ -40,6 +43,9 @@ const ecsClient = new ECSClient({ region: DEFAULT_CONFIG.region });
 
 // CloudWatch Logs client
 const logsClient = new CloudWatchLogsClient({ region: DEFAULT_CONFIG.region });
+
+// Step Functions client
+const sfnClient = new SFNClient({ region: DEFAULT_CONFIG.region });
 
 /**
  * Wait for a task to reach a running state with adequate retries
@@ -258,6 +264,149 @@ async function ensureLogGroup(logGroupName: string): Promise<boolean> {
 }
 
 /**
+ * Start the validation pipeline for an MCP server using Step Functions
+ * 
+ * @param {ServerRecord} server - The server record to validate
+ * @returns {Promise<{success: boolean, executionArn?: string, error?: string}>}
+ */
+export async function startServerValidation(
+  server: ServerRecord
+): Promise<{
+  success: boolean;
+  executionArn?: string;
+  error?: string;
+}> {
+  try {
+    // Check if we're in development mode without proper config
+    const isDevelopment = process.env.NODE_ENV === 'development';
+    
+    // Validate required configuration
+    if (!DEFAULT_CONFIG.validationStateMachineArn) {
+      // In development, provide a helpful message but don't fail hard
+      if (isDevelopment) {
+        console.warn("Development environment: VALIDATION_STATE_MACHINE_ARN is not defined");
+        return {
+          success: true,
+          executionArn: `dev-mock-execution-arn-${Date.now()}`,
+          error: "Running in development mode without AWS configuration"
+        };
+      }
+      
+      return {
+        success: false,
+        error: "Missing required configuration: VALIDATION_STATE_MACHINE_ARN environment variable is not defined"
+      };
+    }
+
+    // Prepare input for the state machine execution
+    // Replace slashes with hyphens in the repositoryName to ensure a valid Docker tag
+    const sanitizedRepoName = server.fullName.replace(/\//g, '-');
+    
+    const input = {
+      serverId: server.ServerId,
+      repositoryName: sanitizedRepoName,
+      originalRepositoryName: server.fullName  // Pass the original repository name for Git clone
+    };
+
+    console.log(`Starting validation pipeline for server ${server.ServerId}`);
+    console.log(`Using state machine: ${DEFAULT_CONFIG.validationStateMachineArn}`);
+    
+    // In development mode with placeholder ARN, return mock success
+    if (isDevelopment && DEFAULT_CONFIG.validationStateMachineArn.includes('123ABC')) {
+      console.warn("Development environment: Using placeholder State Machine ARN");
+      return {
+        success: true,
+        executionArn: `dev-mock-execution-arn-${Date.now()}`,
+        error: "Running in development mode with placeholder ARN"
+      };
+    }
+    
+    // Start the Step Function execution
+    const startCommand = new StartExecutionCommand({
+      stateMachineArn: DEFAULT_CONFIG.validationStateMachineArn,
+      input: JSON.stringify(input),
+      name: `Validation-${server.ServerId.replace(/[^a-zA-Z0-9-_]/g, '-')}-${Date.now()}`
+    });
+
+    const response = await sfnClient.send(startCommand);
+    
+    console.log(`Started Step Functions execution: ${response.executionArn}`);
+    
+    // Return the execution ARN as the job identifier
+    return {
+      success: true,
+      executionArn: response.executionArn
+    };
+  } catch (error) {
+    console.error('Error starting server validation pipeline:', error);
+    
+    // In development mode, provide a more helpful response
+    if (process.env.NODE_ENV === 'development') {
+      return {
+        success: true,
+        executionArn: `dev-mock-execution-arn-${Date.now()}`,
+        error: `Development mode: AWS error occurred: ${error instanceof Error ? error.message : String(error)}`
+      };
+    }
+    
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error)
+    };
+  }
+}
+
+/**
+ * Check the status of a validation pipeline execution
+ * 
+ * @param {string} executionArn - The ARN of the Step Functions execution
+ * @returns {Promise<{status: string, success: boolean, output?: any, error?: string}>}
+ */
+export async function getValidationStatus(
+  executionArn: string
+): Promise<{
+  status: string;
+  success: boolean;
+  output?: any;
+  error?: string;
+}> {
+  try {
+    const describeCommand = new DescribeExecutionCommand({
+      executionArn
+    });
+
+    const execution = await sfnClient.send(describeCommand);
+    
+    // Determine if the execution was successful
+    const isSuccess = execution.status === 'SUCCEEDED';
+    
+    // Parse output if available
+    let output = undefined;
+    if (execution.output) {
+      try {
+        output = JSON.parse(execution.output);
+      } catch (e) {
+        console.warn('Failed to parse execution output:', e);
+      }
+    }
+    
+    return {
+      status: execution.status || 'UNKNOWN',
+      success: isSuccess,
+      output,
+      error: execution.error
+    };
+  } catch (error) {
+    console.error('Error checking validation pipeline status:', error);
+    return {
+      status: 'ERROR',
+      success: false,
+      error: error instanceof Error ? error.message : String(error)
+    };
+  }
+}
+
+/**
  * Launch a container in AWS Fargate
  * 
  * @param {object} options - Container launch options
@@ -280,194 +429,34 @@ export async function launchContainer(options: {
   taskArn?: string;
   error?: string;
 }> {
-  try {
-    // Validate required configuration
-    if (!DEFAULT_CONFIG.subnets.length || !DEFAULT_CONFIG.securityGroups.length) {
-      return {
-        success: false,
-        error: "Missing required AWS configuration: subnets or security groups not defined"
-      };
-    }
-
-    // Print configuration for debugging
-    console.log("AWS Configuration:");
-    console.log(`Region: ${DEFAULT_CONFIG.region}`);
-    console.log(`Cluster: ${DEFAULT_CONFIG.cluster}`);
-    console.log(`Subnets: ${DEFAULT_CONFIG.subnets.join(', ')}`);
-    console.log(`Security Groups: ${DEFAULT_CONFIG.securityGroups.join(', ')}`);
-    console.log(`Task Definition Family: ${DEFAULT_CONFIG.taskDefinitionFamily}`);
-    console.log(`Execution Role ARN: ${DEFAULT_CONFIG.executionRoleArn || 'Not specified'}`);
-
-    // Set up container override configurations
-    const containerName = `${options.serverName.toLowerCase().replace(/[^a-z0-9]/g, '-')}-container`;
-    const containerPort = options.containerPort || DEFAULT_CONFIG.containerPort;
-    
-    // Override the task definition family if provided
-    if (options.taskDefinitionFamily) {
-      DEFAULT_CONFIG.taskDefinitionFamily = options.taskDefinitionFamily;
-    }
-
-    // Create CloudWatch log group if logging is enabled
-    const logGroupName = `/ecs/${DEFAULT_CONFIG.taskDefinitionFamily}`;
-    if (process.env.AWS_DISABLE_LOGGING !== 'true') {
-      const logGroupCreated = await ensureLogGroup(logGroupName);
-      if (!logGroupCreated) {
-        console.warn('Failed to create log group, continuing without logging');
-      }
-    }
-
-    // Format environment variables for container
-    const environment = options.environmentVariables || [];
-
-    // Configure the network for the task
-    const networkConfiguration: NetworkConfiguration = {
-      awsvpcConfiguration: {
-        subnets: DEFAULT_CONFIG.subnets,
-        securityGroups: DEFAULT_CONFIG.securityGroups,
-        assignPublicIp: 'ENABLED' as AssignPublicIp // Force assign public IP
-      }
-    };
-
-    // Ensure we have a task definition for this container
-    const taskDefinition = await ensureTaskDefinition(
-      options.image,
-      containerName,
-      containerPort
-    );
-
-    // Configure the container overrides for environment variables
-    const containerOverride: ContainerOverride = {
-      name: containerName,
-      environment
-    };
-
-    const overrides: TaskOverride = {
-      containerOverrides: [containerOverride]
-    };
-
-    // Run the Fargate task
-    const runTaskCommand = new RunTaskCommand({
-      cluster: DEFAULT_CONFIG.cluster,
-      taskDefinition: taskDefinition,
-      count: 1,
-      launchType: 'FARGATE',
-      networkConfiguration,
-      overrides
-    });
-
-    console.log(`Launching container for ${options.serverName} with image ${options.image}`);
-    const runTaskResult = await ecsClient.send(runTaskCommand);
-
-    // Check if task was started
-    if (!runTaskResult.tasks || runTaskResult.tasks.length === 0) {
-      const failureReason = runTaskResult.failures && runTaskResult.failures.length > 0
-        ? runTaskResult.failures[0].reason
-        : 'Unknown reason';
-      
-      return {
-        success: false,
-        error: `Failed to start Fargate task: ${failureReason}`
-      };
-    }
-
-    // Get task ARN
-    const taskArn = runTaskResult.tasks[0].taskArn;
-    if (!taskArn) {
-      return {
-        success: false,
-        error: 'Task ARN not found in response'
-      };
-    }
-
-    console.log(`Task started with ARN: ${taskArn}`);
-
-    // Wait for task to become running
-    const waitResult = await waitForTask(taskArn, 10, 5000);
-    if (!waitResult.success) {
-      return {
-        success: false,
-        error: waitResult.error,
-        taskArn
-      };
-    }
-
-    // Get public IP address from the task
-    const task = waitResult.task;
-    const attachments = task.attachments || [];
-    
-    console.log('Task attachments:', JSON.stringify(attachments, null, 2));
-    
-    const networkInterfaceAttachment = attachments.find((attachment: any) => 
-      attachment.type === 'ElasticNetworkInterface'
-    );
-
-    if (!networkInterfaceAttachment || !networkInterfaceAttachment.details) {
-      console.log('No network interface attachment found in task');
-      return { 
-        success: false, 
-        error: 'Network interface details not found',
-        taskArn 
-      };
-    }
-
-    console.log('Network interface details:', JSON.stringify(networkInterfaceAttachment.details, null, 2));
-
-    const publicIpDetail = networkInterfaceAttachment.details.find((detail: any) => 
-      detail.name === 'publicIp'
-    );
-
-    if (!publicIpDetail || !publicIpDetail.value) {
-      // If no public IP, try to get the private IP
-      console.log('No public IP found, checking for private IP');
-      console.log('NOTE: Even with assignPublicIp: ENABLED, your subnet configuration appears to be blocking public IPs');
-      console.log('SOLUTION OPTIONS:');
-      console.log('  1. Use an AWS Application Load Balancer (ALB) to expose your Fargate containers');
-      console.log('  2. Configure your subnets to support public IPs in the AWS console');
-      console.log('  3. Use VPC endpoints to access the container from within AWS');
-      
-      const privateIpDetail = networkInterfaceAttachment.details.find((detail: any) => 
-        detail.name === 'privateIPv4Address'
-      );
-      
-      if (privateIpDetail && privateIpDetail.value) {
-        console.log(`Task running with private IP: ${privateIpDetail.value}. Note: This may not be accessible from the internet.`);
-        
-        // Return the private IP instead if we couldn't get a public IP
-        // This allows for internal network access if applicable
-        const privateEndpoint = `http://${privateIpDetail.value}:${containerPort}`;
-        return { 
-          success: true, 
-          endpoint: privateEndpoint,
-          taskArn,
-          error: 'Warning: Using private IP address, may not be accessible from the internet'
-        };
-      }
-      
-      console.log('No private IP found either');
-      return { 
-        success: false, 
-        error: 'No IP address found for task',
-        taskArn 
-      };
-    }
-
-    const publicIp = publicIpDetail.value;
-    const endpoint = `http://${publicIp}:${containerPort}`;
-
-    console.log(`Task running at endpoint: ${endpoint}`);
-    
-    return {
-      success: true,
-      endpoint,
-      taskArn
-    };
-  } catch (error) {
-    console.error('Error launching Fargate container:', error);
+  console.warn('launchContainer is deprecated. Use startServerValidation instead.');
+  console.warn('This function now delegates to the Step Functions validation pipeline.');
+  
+  // Create a minimal server record from the options
+  const server: ServerRecord = {
+    ServerId: options.serverName,
+    name: options.serverName,
+    fullName: options.serverName,
+    url: '',
+    discoveredAt: Date.now(),
+    verified: false
+  };
+  
+  const result = await startServerValidation(server);
+  
+  if (!result.success) {
     return {
       success: false,
-      error: error instanceof Error ? error.message : String(error)
+      error: result.error
     };
   }
+  
+  // Return a mock response that's compatible with the old API
+  return {
+    success: true,
+    endpoint: 'Validation in progress via Step Functions. Endpoint will be updated in DynamoDB when ready.',
+    taskArn: result.executionArn // Use the execution ARN as a task identifier
+  };
 }
 
 /**

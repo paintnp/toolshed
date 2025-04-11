@@ -1,0 +1,80 @@
+# AWS CLI Commands to Update CodeBuild Project and Step Functions State Machine
+
+# 1. Export current CodeBuild project configuration
+aws codebuild batch-get-projects --names ToolShed-MCP-Server-Build --output json > codebuild-project.json
+
+# 2. Update the buildspec in the project
+# First, create a new buildspec file
+cat > new-buildspec.json << 'EOF'
+{
+  "version": "0.2",
+  "phases": {
+    "pre_build": {
+      "commands": [
+        "echo Logging in to Amazon ECR...",
+        "aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $REPOSITORY_URI",
+        "REPO_URL=$(echo $CODEBUILD_INITIATOR | cut -d/ -f2)",
+        "REPO_NAME=$(echo $REPO_URL | cut -d@ -f1)",
+        "IMAGE_TAG=${REPOSITORY_NAME}:${CODEBUILD_RESOLVED_SOURCE_VERSION}"
+      ]
+    },
+    "build": {
+      "commands": [
+        "echo Cloning repository...",
+        "echo 'Using repository: $ORIGINAL_REPOSITORY_NAME'",
+        "git clone https://$GITHUB_TOKEN@github.com/$ORIGINAL_REPOSITORY_NAME.git repo",
+        "cd repo",
+        "echo Building the Docker image...",
+        "docker build -t $REPOSITORY_URI:$IMAGE_TAG .",
+        "docker tag $REPOSITORY_URI:$IMAGE_TAG $REPOSITORY_URI:latest"
+      ]
+    },
+    "post_build": {
+      "commands": [
+        "echo Pushing the Docker image...",
+        "docker push $REPOSITORY_URI:$IMAGE_TAG",
+        "docker push $REPOSITORY_URI:latest",
+        "echo Writing image definition file...",
+        "echo \"{\\\"imageUri\\\":\\\"$REPOSITORY_URI:$IMAGE_TAG\\\"}\" > imageDefinition.json"
+      ]
+    }
+  },
+  "artifacts": {
+    "files": [
+      "imageDefinition.json"
+    ]
+  }
+}
+EOF
+
+# 3. Update CodeBuild project with new buildspec
+aws codebuild update-project --name ToolShed-MCP-Server-Build --build-spec file://new-buildspec.json
+
+# 4. Get the current Step Functions state machine definition
+aws stepfunctions describe-state-machine --state-machine-arn arn:aws:states:us-east-1:277502524328:stateMachine:ToolShed-MCP-Server-Validation-Pipeline > state-machine.json
+
+# 5. Modify the state machine definition (this requires manual editing)
+# Find the CodeBuild task section and add ORIGINAL_REPOSITORY_NAME to the environment variables
+# Example of what to look for and change:
+# "EnvironmentVariablesOverride": [
+#   {
+#     "Name": "REPOSITORY_NAME",
+#     "Type": "PLAINTEXT",
+#     "Value.$": "$.repositoryName"
+#   },
+#   {
+#     "Name": "ORIGINAL_REPOSITORY_NAME",
+#     "Type": "PLAINTEXT", 
+#     "Value.$": "$.originalRepositoryName"
+#   }
+# ]
+
+# 6. Update the state machine with the modified definition
+# aws stepfunctions update-state-machine --state-machine-arn arn:aws:states:us-east-1:277502524328:stateMachine:ToolShed-MCP-Server-Validation-Pipeline --definition file://updated-definition.json
+
+# For direct AWS Console use, you can:
+# 1. Go to CodeBuild > Projects > ToolShed-MCP-Server-Build
+# 2. Edit the project and replace the buildspec
+# 3. Go to Step Functions > State machines > ToolShed-MCP-Server-Validation-Pipeline
+# 4. Edit > Edit as text
+# 5. Find the CodeBuild task and add the ORIGINAL_REPOSITORY_NAME environment variable 

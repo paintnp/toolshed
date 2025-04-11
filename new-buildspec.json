@@ -1,0 +1,51 @@
+{
+  "version": "0.2",
+  "phases": {
+    "pre_build": {
+      "commands": [
+        "echo Logging in to Amazon ECR...",
+        "aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $REPOSITORY_URI",
+        "echo Logging in to Docker Hub...",
+        "echo $DOCKERHUB_TOKEN | docker login -u $DOCKERHUB_USERNAME --password-stdin",
+        "REPO_URL=$(echo $CODEBUILD_INITIATOR | cut -d/ -f2)",
+        "REPO_NAME=$(echo $REPO_URL | cut -d@ -f1)",
+        "echo \"Repository Name: $REPOSITORY_NAME\"",
+        "echo \"Original Repository Name: $ORIGINAL_REPOSITORY_NAME\"",
+        "echo \"Server ID: $SERVER_ID\"",
+        "# Create a valid tag by replacing invalid characters",
+        "CLEAN_REPO_NAME=$(echo $REPOSITORY_NAME | tr '/' '-')",
+        "BUILD_TAG=${CLEAN_REPO_NAME}-$(date +%Y%m%d%H%M%S)"
+      ]
+    },
+    "build": {
+      "commands": [
+        "echo Cloning repository...",
+        "echo \"Using repository: $ORIGINAL_REPOSITORY_NAME\"",
+        "# Extract owner and repo from ORIGINAL_REPOSITORY_NAME",
+        "OWNER=$(echo $ORIGINAL_REPOSITORY_NAME | cut -d/ -f1)",
+        "REPO=$(echo $ORIGINAL_REPOSITORY_NAME | cut -d/ -f2)",
+        "if [ -z \"$REPO\" ]; then REPO=$OWNER; OWNER=\"\"; fi",
+        "echo \"Owner: $OWNER, Repo: $REPO\"",
+        "if [ -n \"$OWNER\" ]; then git clone https://$GITHUB_TOKEN@github.com/$OWNER/$REPO.git repo; else git clone https://$GITHUB_TOKEN@github.com/$REPO.git repo; fi",
+        "cd repo",
+        "echo Building the Docker image...",
+        "docker build -t $REPOSITORY_URI:$BUILD_TAG .",
+        "docker tag $REPOSITORY_URI:$BUILD_TAG $REPOSITORY_URI:latest"
+      ]
+    },
+    "post_build": {
+      "commands": [
+        "echo Pushing the Docker image...",
+        "docker push $REPOSITORY_URI:$BUILD_TAG",
+        "docker push $REPOSITORY_URI:latest",
+        "echo Writing image definition file...",
+        "echo \"{\\\"imageUri\\\":\\\"$REPOSITORY_URI:$BUILD_TAG\\\", \\\"serverId\\\":\\\"$SERVER_ID\\\"}\" > imageDefinition.json"
+      ]
+    }
+  },
+  "artifacts": {
+    "files": [
+      "imageDefinition.json"
+    ]
+  }
+}

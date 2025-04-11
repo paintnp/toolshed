@@ -5,38 +5,92 @@ import { notFound } from "next/navigation";
 
 // Fetch server details from API
 async function getServerDetails(id: string) {
-  // Use the absolute URL in production, relative URL in development
-  const host = process.env.VERCEL_URL
-    ? `https://${process.env.VERCEL_URL}`
-    : "http://localhost:3000";
-  
-  const res = await fetch(`${host}/api/servers/${id}`, { next: { revalidate: 3600 } });
-  
-  if (!res.ok) {
-    if (res.status === 404) {
-      return null; // Server not found
+  try {
+    // Use the absolute URL with the correct port
+    const origin = process.env.VERCEL_URL
+      ? `https://${process.env.VERCEL_URL}`
+      : process.env.NODE_ENV === 'development' 
+        ? 'http://localhost:3091' 
+        : '';
+    
+    console.log(`Fetching server details for ${id} from ${origin}/api/servers/${encodeURIComponent(id)}`);
+    
+    // Fix: Properly encode the ID in the URL path
+    const encodedId = encodeURIComponent(id);
+    const res = await fetch(`${origin}/api/servers/${encodedId}`, { 
+      // Cache for 1 hour
+      next: { revalidate: 3600 }
+    });
+    
+    if (!res.ok) {
+      if (res.status === 404) {
+        return { notFound: true }; // Server not found
+      }
+      throw new Error(`Failed to fetch server details: ${res.status} ${res.statusText}`);
     }
-    throw new Error("Failed to fetch server details");
+    
+    const data = await res.json();
+    return data;
+  } catch (error) {
+    console.error(`Error fetching server details for ${id}:`, error);
+    return { error: error.message };
   }
-  
-  return res.json();
 }
 
 export default async function ServerDetail({ params }: { params: { id: string } }) {
-  const serverId = params.id;
-  const server = await getServerDetails(serverId);
+  // Fix: Await the params object before accessing its properties
+  const paramsObject = await params;
+  const serverId = decodeURIComponent(paramsObject.id);
+  const response = await getServerDetails(serverId);
   
-  if (!server) {
+  // Handle not found case
+  if (response?.notFound) {
     notFound();
   }
+  
+  // Handle error case
+  if (response?.error) {
+    return (
+      <div className="flex flex-col min-h-screen bg-slate-100 dark:bg-slate-900">
+        <Navigation />
+        <main className="flex-1 container mx-auto p-6">
+          <div className="mb-6">
+            <Link href="/servers" className="text-blue-600 dark:text-blue-400 hover:underline">
+              ← Back to servers
+            </Link>
+          </div>
+          
+          <div className="bg-white dark:bg-slate-800 rounded-lg shadow p-8">
+            <div className="p-6 max-w-2xl mx-auto text-center">
+              <h1 className="text-2xl font-bold text-red-600 dark:text-red-400 mb-4">Error Loading Server</h1>
+              <p className="text-gray-600 dark:text-gray-300 mb-6">{response.error}</p>
+              <p className="mb-6">There was a problem fetching the details for this server. This could be due to network issues or database configuration.</p>
+              <div className="flex justify-center gap-4">
+                <Button onClick={() => window.location.reload()}>
+                  Try Again
+                </Button>
+                <Link href="/servers">
+                  <Button variant="outline">
+                    Back to Servers
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  const server = response;
 
   return (
     <div className="flex flex-col min-h-screen bg-slate-100 dark:bg-slate-900">
       <Navigation />
       <main className="flex-1 container mx-auto p-6">
         <div className="mb-6">
-          <Link href="/search" className="text-blue-600 dark:text-blue-400 hover:underline">
-            ← Back to search results
+          <Link href="/servers" className="text-blue-600 dark:text-blue-400 hover:underline">
+            ← Back to servers
           </Link>
         </div>
 

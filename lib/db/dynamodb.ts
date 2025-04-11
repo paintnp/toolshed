@@ -1,4 +1,4 @@
-import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
+import { DynamoDBClient, DescribeTableCommand } from "@aws-sdk/client-dynamodb";
 import { 
   DynamoDBDocumentClient, 
   PutCommand, 
@@ -26,6 +26,37 @@ const docClient = DynamoDBDocumentClient.from(ddbClient, {
     removeUndefinedValues: true,
   }
 });
+
+/**
+ * Check if AWS credentials are properly configured
+ */
+export async function checkAwsCredentials(): Promise<boolean> {
+  try {
+    // Try to make a simple DynamoDB operation to verify credentials
+    await ddbClient.config.credentials();
+    return true;
+  } catch (error) {
+    console.error('Error checking AWS credentials:', error);
+    return false;
+  }
+}
+
+/**
+ * Check if DynamoDB table exists
+ */
+export async function tableExists(): Promise<boolean> {
+  try {
+    console.log(`Checking if table ${TABLE_NAME} exists`);
+    // Try to describe the table
+    const command = new DescribeTableCommand({ TableName: TABLE_NAME });
+    await ddbClient.send(command);
+    console.log(`Table ${TABLE_NAME} exists`);
+    return true;
+  } catch (error) {
+    console.error(`Error checking if table ${TABLE_NAME} exists:`, error);
+    return false;
+  }
+}
 
 // Server record interface
 export interface ServerRecord {
@@ -259,32 +290,6 @@ export async function deleteServer(serverId: string): Promise<boolean> {
     return true;
   } catch (error) {
     console.error(`Error deleting server ${serverId} from DynamoDB:`, error);
-    throw error;
-  }
-}
-
-/**
- * Check if DynamoDB table exists
- * 
- * @returns {Promise<boolean>} True if table exists
- */
-export async function tableExists(): Promise<boolean> {
-  try {
-    // Try to scan with limit 1 to see if table exists
-    await docClient.send(new ScanCommand({
-      TableName: TABLE_NAME,
-      Limit: 1
-    }));
-    
-    return true;
-  } catch (error) {
-    // If error is ResourceNotFoundException, table doesn't exist
-    const errorMessage = (error as Error).message || '';
-    if (errorMessage.includes('ResourceNotFoundException')) {
-      return false;
-    }
-    
-    // For other errors, rethrow
     throw error;
   }
 } 

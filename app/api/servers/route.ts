@@ -3,7 +3,8 @@ import {
   listAllServers, 
   queryServersByName, 
   listVerifiedServers,
-  tableExists 
+  tableExists,
+  checkAwsCredentials
 } from '@/lib/db/dynamodb';
 
 /**
@@ -12,11 +13,22 @@ import {
  */
 export async function GET(request: NextRequest) {
   try {
+    // Check AWS credentials first
+    const hasCredentials = await checkAwsCredentials();
+    if (!hasCredentials) {
+      console.error('AWS credentials missing or invalid');
+      return NextResponse.json(
+        { error: 'AWS credentials missing or invalid. Please configure AWS credentials.' },
+        { status: 500 }
+      );
+    }
+    
     // Check if DynamoDB table exists
     const hasTable = await tableExists();
     if (!hasTable) {
+      console.error('DynamoDB table does not exist');
       return NextResponse.json(
-        { error: 'Database not initialized. Please run setup script first.' },
+        { error: 'Database not initialized. Please run setup script first or check AWS region configuration.' },
         { status: 500 }
       );
     }
@@ -54,7 +66,11 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('Error fetching servers:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch servers' },
+      { 
+        error: 'Failed to fetch servers', 
+        details: error.message || 'Unknown error',
+        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      },
       { status: 500 }
     );
   }

@@ -1,0 +1,1651 @@
+{
+ "Resources": {
+  "ValidationVpcA7A6351A": {
+   "Type": "AWS::EC2::VPC",
+   "Properties": {
+    "CidrBlock": "10.0.0.0/16",
+    "EnableDnsHostnames": true,
+    "EnableDnsSupport": true,
+    "InstanceTenancy": "default",
+    "Tags": [
+     {
+      "Key": "Name",
+      "Value": "ValidationPipelineStack/ValidationVpc"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "ValidationPipelineStack/ValidationVpc/Resource"
+   }
+  },
+  "ValidationVpcPublicSubnet1Subnet77950CB6": {
+   "Type": "AWS::EC2::Subnet",
+   "Properties": {
+    "AvailabilityZone": "us-east-1a",
+    "CidrBlock": "10.0.0.0/18",
+    "MapPublicIpOnLaunch": true,
+    "Tags": [
+     {
+      "Key": "aws-cdk:subnet-name",
+      "Value": "Public"
+     },
+     {
+      "Key": "aws-cdk:subnet-type",
+      "Value": "Public"
+     },
+     {
+      "Key": "Name",
+      "Value": "ValidationPipelineStack/ValidationVpc/PublicSubnet1"
+     }
+    ],
+    "VpcId": {
+     "Ref": "ValidationVpcA7A6351A"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "ValidationPipelineStack/ValidationVpc/PublicSubnet1/Subnet"
+   }
+  },
+  "ValidationVpcPublicSubnet1RouteTableFB109C3E": {
+   "Type": "AWS::EC2::RouteTable",
+   "Properties": {
+    "Tags": [
+     {
+      "Key": "Name",
+      "Value": "ValidationPipelineStack/ValidationVpc/PublicSubnet1"
+     }
+    ],
+    "VpcId": {
+     "Ref": "ValidationVpcA7A6351A"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "ValidationPipelineStack/ValidationVpc/PublicSubnet1/RouteTable"
+   }
+  },
+  "ValidationVpcPublicSubnet1RouteTableAssociation3EFD492F": {
+   "Type": "AWS::EC2::SubnetRouteTableAssociation",
+   "Properties": {
+    "RouteTableId": {
+     "Ref": "ValidationVpcPublicSubnet1RouteTableFB109C3E"
+    },
+    "SubnetId": {
+     "Ref": "ValidationVpcPublicSubnet1Subnet77950CB6"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "ValidationPipelineStack/ValidationVpc/PublicSubnet1/RouteTableAssociation"
+   }
+  },
+  "ValidationVpcPublicSubnet1DefaultRouteB1F6CFE7": {
+   "Type": "AWS::EC2::Route",
+   "Properties": {
+    "DestinationCidrBlock": "0.0.0.0/0",
+    "GatewayId": {
+     "Ref": "ValidationVpcIGW93D4266F"
+    },
+    "RouteTableId": {
+     "Ref": "ValidationVpcPublicSubnet1RouteTableFB109C3E"
+    }
+   },
+   "DependsOn": [
+    "ValidationVpcVPCGW79329A51"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "ValidationPipelineStack/ValidationVpc/PublicSubnet1/DefaultRoute"
+   }
+  },
+  "ValidationVpcPublicSubnet1EIP7E242C15": {
+   "Type": "AWS::EC2::EIP",
+   "Properties": {
+    "Domain": "vpc",
+    "Tags": [
+     {
+      "Key": "Name",
+      "Value": "ValidationPipelineStack/ValidationVpc/PublicSubnet1"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "ValidationPipelineStack/ValidationVpc/PublicSubnet1/EIP"
+   }
+  },
+  "ValidationVpcPublicSubnet1NATGatewayE2AF8DDB": {
+   "Type": "AWS::EC2::NatGateway",
+   "Properties": {
+    "AllocationId": {
+     "Fn::GetAtt": [
+      "ValidationVpcPublicSubnet1EIP7E242C15",
+      "AllocationId"
+     ]
+    },
+    "SubnetId": {
+     "Ref": "ValidationVpcPublicSubnet1Subnet77950CB6"
+    },
+    "Tags": [
+     {
+      "Key": "Name",
+      "Value": "ValidationPipelineStack/ValidationVpc/PublicSubnet1"
+     }
+    ]
+   },
+   "DependsOn": [
+    "ValidationVpcPublicSubnet1DefaultRouteB1F6CFE7",
+    "ValidationVpcPublicSubnet1RouteTableAssociation3EFD492F"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "ValidationPipelineStack/ValidationVpc/PublicSubnet1/NATGateway"
+   }
+  },
+  "ValidationVpcPublicSubnet2Subnet533BB13F": {
+   "Type": "AWS::EC2::Subnet",
+   "Properties": {
+    "AvailabilityZone": "us-east-1b",
+    "CidrBlock": "10.0.64.0/18",
+    "MapPublicIpOnLaunch": true,
+    "Tags": [
+     {
+      "Key": "aws-cdk:subnet-name",
+      "Value": "Public"
+     },
+     {
+      "Key": "aws-cdk:subnet-type",
+      "Value": "Public"
+     },
+     {
+      "Key": "Name",
+      "Value": "ValidationPipelineStack/ValidationVpc/PublicSubnet2"
+     }
+    ],
+    "VpcId": {
+     "Ref": "ValidationVpcA7A6351A"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "ValidationPipelineStack/ValidationVpc/PublicSubnet2/Subnet"
+   }
+  },
+  "ValidationVpcPublicSubnet2RouteTable9271E6E2": {
+   "Type": "AWS::EC2::RouteTable",
+   "Properties": {
+    "Tags": [
+     {
+      "Key": "Name",
+      "Value": "ValidationPipelineStack/ValidationVpc/PublicSubnet2"
+     }
+    ],
+    "VpcId": {
+     "Ref": "ValidationVpcA7A6351A"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "ValidationPipelineStack/ValidationVpc/PublicSubnet2/RouteTable"
+   }
+  },
+  "ValidationVpcPublicSubnet2RouteTableAssociation257FA8F2": {
+   "Type": "AWS::EC2::SubnetRouteTableAssociation",
+   "Properties": {
+    "RouteTableId": {
+     "Ref": "ValidationVpcPublicSubnet2RouteTable9271E6E2"
+    },
+    "SubnetId": {
+     "Ref": "ValidationVpcPublicSubnet2Subnet533BB13F"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "ValidationPipelineStack/ValidationVpc/PublicSubnet2/RouteTableAssociation"
+   }
+  },
+  "ValidationVpcPublicSubnet2DefaultRouteA31A1FF2": {
+   "Type": "AWS::EC2::Route",
+   "Properties": {
+    "DestinationCidrBlock": "0.0.0.0/0",
+    "GatewayId": {
+     "Ref": "ValidationVpcIGW93D4266F"
+    },
+    "RouteTableId": {
+     "Ref": "ValidationVpcPublicSubnet2RouteTable9271E6E2"
+    }
+   },
+   "DependsOn": [
+    "ValidationVpcVPCGW79329A51"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "ValidationPipelineStack/ValidationVpc/PublicSubnet2/DefaultRoute"
+   }
+  },
+  "ValidationVpcPrivateSubnet1Subnet4675042B": {
+   "Type": "AWS::EC2::Subnet",
+   "Properties": {
+    "AvailabilityZone": "us-east-1a",
+    "CidrBlock": "10.0.128.0/18",
+    "MapPublicIpOnLaunch": false,
+    "Tags": [
+     {
+      "Key": "aws-cdk:subnet-name",
+      "Value": "Private"
+     },
+     {
+      "Key": "aws-cdk:subnet-type",
+      "Value": "Private"
+     },
+     {
+      "Key": "Name",
+      "Value": "ValidationPipelineStack/ValidationVpc/PrivateSubnet1"
+     }
+    ],
+    "VpcId": {
+     "Ref": "ValidationVpcA7A6351A"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "ValidationPipelineStack/ValidationVpc/PrivateSubnet1/Subnet"
+   }
+  },
+  "ValidationVpcPrivateSubnet1RouteTable47424F2C": {
+   "Type": "AWS::EC2::RouteTable",
+   "Properties": {
+    "Tags": [
+     {
+      "Key": "Name",
+      "Value": "ValidationPipelineStack/ValidationVpc/PrivateSubnet1"
+     }
+    ],
+    "VpcId": {
+     "Ref": "ValidationVpcA7A6351A"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "ValidationPipelineStack/ValidationVpc/PrivateSubnet1/RouteTable"
+   }
+  },
+  "ValidationVpcPrivateSubnet1RouteTableAssociation8E4B39D0": {
+   "Type": "AWS::EC2::SubnetRouteTableAssociation",
+   "Properties": {
+    "RouteTableId": {
+     "Ref": "ValidationVpcPrivateSubnet1RouteTable47424F2C"
+    },
+    "SubnetId": {
+     "Ref": "ValidationVpcPrivateSubnet1Subnet4675042B"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "ValidationPipelineStack/ValidationVpc/PrivateSubnet1/RouteTableAssociation"
+   }
+  },
+  "ValidationVpcPrivateSubnet1DefaultRoute37DA2BA4": {
+   "Type": "AWS::EC2::Route",
+   "Properties": {
+    "DestinationCidrBlock": "0.0.0.0/0",
+    "NatGatewayId": {
+     "Ref": "ValidationVpcPublicSubnet1NATGatewayE2AF8DDB"
+    },
+    "RouteTableId": {
+     "Ref": "ValidationVpcPrivateSubnet1RouteTable47424F2C"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "ValidationPipelineStack/ValidationVpc/PrivateSubnet1/DefaultRoute"
+   }
+  },
+  "ValidationVpcPrivateSubnet2Subnet9B94DBBC": {
+   "Type": "AWS::EC2::Subnet",
+   "Properties": {
+    "AvailabilityZone": "us-east-1b",
+    "CidrBlock": "10.0.192.0/18",
+    "MapPublicIpOnLaunch": false,
+    "Tags": [
+     {
+      "Key": "aws-cdk:subnet-name",
+      "Value": "Private"
+     },
+     {
+      "Key": "aws-cdk:subnet-type",
+      "Value": "Private"
+     },
+     {
+      "Key": "Name",
+      "Value": "ValidationPipelineStack/ValidationVpc/PrivateSubnet2"
+     }
+    ],
+    "VpcId": {
+     "Ref": "ValidationVpcA7A6351A"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "ValidationPipelineStack/ValidationVpc/PrivateSubnet2/Subnet"
+   }
+  },
+  "ValidationVpcPrivateSubnet2RouteTable2C792194": {
+   "Type": "AWS::EC2::RouteTable",
+   "Properties": {
+    "Tags": [
+     {
+      "Key": "Name",
+      "Value": "ValidationPipelineStack/ValidationVpc/PrivateSubnet2"
+     }
+    ],
+    "VpcId": {
+     "Ref": "ValidationVpcA7A6351A"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "ValidationPipelineStack/ValidationVpc/PrivateSubnet2/RouteTable"
+   }
+  },
+  "ValidationVpcPrivateSubnet2RouteTableAssociation4C09E4E7": {
+   "Type": "AWS::EC2::SubnetRouteTableAssociation",
+   "Properties": {
+    "RouteTableId": {
+     "Ref": "ValidationVpcPrivateSubnet2RouteTable2C792194"
+    },
+    "SubnetId": {
+     "Ref": "ValidationVpcPrivateSubnet2Subnet9B94DBBC"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "ValidationPipelineStack/ValidationVpc/PrivateSubnet2/RouteTableAssociation"
+   }
+  },
+  "ValidationVpcPrivateSubnet2DefaultRoute3E979152": {
+   "Type": "AWS::EC2::Route",
+   "Properties": {
+    "DestinationCidrBlock": "0.0.0.0/0",
+    "NatGatewayId": {
+     "Ref": "ValidationVpcPublicSubnet1NATGatewayE2AF8DDB"
+    },
+    "RouteTableId": {
+     "Ref": "ValidationVpcPrivateSubnet2RouteTable2C792194"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "ValidationPipelineStack/ValidationVpc/PrivateSubnet2/DefaultRoute"
+   }
+  },
+  "ValidationVpcIGW93D4266F": {
+   "Type": "AWS::EC2::InternetGateway",
+   "Properties": {
+    "Tags": [
+     {
+      "Key": "Name",
+      "Value": "ValidationPipelineStack/ValidationVpc"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "ValidationPipelineStack/ValidationVpc/IGW"
+   }
+  },
+  "ValidationVpcVPCGW79329A51": {
+   "Type": "AWS::EC2::VPCGatewayAttachment",
+   "Properties": {
+    "InternetGatewayId": {
+     "Ref": "ValidationVpcIGW93D4266F"
+    },
+    "VpcId": {
+     "Ref": "ValidationVpcA7A6351A"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "ValidationPipelineStack/ValidationVpc/VPCGW"
+   }
+  },
+  "EcsSecurityGroup44008BF1": {
+   "Type": "AWS::EC2::SecurityGroup",
+   "Properties": {
+    "GroupDescription": "Security group for MCP Server validation tasks",
+    "SecurityGroupEgress": [
+     {
+      "CidrIp": "0.0.0.0/0",
+      "Description": "Allow all outbound traffic by default",
+      "IpProtocol": "-1"
+     }
+    ],
+    "SecurityGroupIngress": [
+     {
+      "CidrIp": "0.0.0.0/0",
+      "Description": "Allow MCP server traffic",
+      "FromPort": 8000,
+      "IpProtocol": "tcp",
+      "ToPort": 8000
+     }
+    ],
+    "VpcId": {
+     "Ref": "ValidationVpcA7A6351A"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "ValidationPipelineStack/EcsSecurityGroup/Resource"
+   }
+  },
+  "MCPServerRepoA6EF8A41": {
+   "Type": "AWS::ECR::Repository",
+   "Properties": {
+    "LifecyclePolicy": {
+     "LifecyclePolicyText": "{\"rules\":[{\"rulePriority\":1,\"description\":\"Keep only the last 100 images\",\"selection\":{\"tagStatus\":\"any\",\"countType\":\"imageCountMoreThan\",\"countNumber\":100},\"action\":{\"type\":\"expire\"}}]}"
+    },
+    "RepositoryName": "toolshed-mcp-servers-v2"
+   },
+   "UpdateReplacePolicy": "Retain",
+   "DeletionPolicy": "Retain",
+   "Metadata": {
+    "aws:cdk:path": "ValidationPipelineStack/MCPServerRepo/Resource"
+   }
+  },
+  "MCPServerBuildRole28056180": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Statement": [
+      {
+       "Action": "sts:AssumeRole",
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "codebuild.amazonaws.com"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "ValidationPipelineStack/MCPServerBuild/Role/Resource"
+   }
+  },
+  "MCPServerBuildRoleDefaultPolicyB2C02169": {
+   "Type": "AWS::IAM::Policy",
+   "Properties": {
+    "PolicyDocument": {
+     "Statement": [
+      {
+       "Action": "secretsmanager:GetSecretValue",
+       "Effect": "Allow",
+       "Resource": [
+        {
+         "Fn::Join": [
+          "",
+          [
+           "arn:",
+           {
+            "Ref": "AWS::Partition"
+           },
+           ":secretsmanager:us-east-1:277502524328:secret:toolshed/github-token*"
+          ]
+         ]
+        },
+        {
+         "Fn::Join": [
+          "",
+          [
+           "arn:",
+           {
+            "Ref": "AWS::Partition"
+           },
+           ":secretsmanager:us-east-1:277502524328:secret:toolshed/dockerhub-credentials*"
+          ]
+         ]
+        }
+       ]
+      },
+      {
+       "Action": [
+        "logs:CreateLogGroup",
+        "logs:CreateLogStream",
+        "logs:PutLogEvents"
+       ],
+       "Effect": "Allow",
+       "Resource": [
+        {
+         "Fn::Join": [
+          "",
+          [
+           "arn:",
+           {
+            "Ref": "AWS::Partition"
+           },
+           ":logs:us-east-1:277502524328:log-group:/aws/codebuild/",
+           {
+            "Ref": "MCPServerBuild453D3FD6"
+           }
+          ]
+         ]
+        },
+        {
+         "Fn::Join": [
+          "",
+          [
+           "arn:",
+           {
+            "Ref": "AWS::Partition"
+           },
+           ":logs:us-east-1:277502524328:log-group:/aws/codebuild/",
+           {
+            "Ref": "MCPServerBuild453D3FD6"
+           },
+           ":*"
+          ]
+         ]
+        }
+       ]
+      },
+      {
+       "Action": [
+        "codebuild:CreateReportGroup",
+        "codebuild:CreateReport",
+        "codebuild:UpdateReport",
+        "codebuild:BatchPutTestCases",
+        "codebuild:BatchPutCodeCoverages"
+       ],
+       "Effect": "Allow",
+       "Resource": {
+        "Fn::Join": [
+         "",
+         [
+          "arn:",
+          {
+           "Ref": "AWS::Partition"
+          },
+          ":codebuild:us-east-1:277502524328:report-group/",
+          {
+           "Ref": "MCPServerBuild453D3FD6"
+          },
+          "-*"
+         ]
+        ]
+       }
+      },
+      {
+       "Action": [
+        "ecr:BatchCheckLayerAvailability",
+        "ecr:GetDownloadUrlForLayer",
+        "ecr:BatchGetImage",
+        "ecr:CompleteLayerUpload",
+        "ecr:UploadLayerPart",
+        "ecr:InitiateLayerUpload",
+        "ecr:PutImage"
+       ],
+       "Effect": "Allow",
+       "Resource": {
+        "Fn::GetAtt": [
+         "MCPServerRepoA6EF8A41",
+         "Arn"
+        ]
+       }
+      },
+      {
+       "Action": "ecr:GetAuthorizationToken",
+       "Effect": "Allow",
+       "Resource": "*"
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "PolicyName": "MCPServerBuildRoleDefaultPolicyB2C02169",
+    "Roles": [
+     {
+      "Ref": "MCPServerBuildRole28056180"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "ValidationPipelineStack/MCPServerBuild/Role/DefaultPolicy/Resource"
+   }
+  },
+  "MCPServerBuild453D3FD6": {
+   "Type": "AWS::CodeBuild::Project",
+   "Properties": {
+    "Artifacts": {
+     "Type": "NO_ARTIFACTS"
+    },
+    "Cache": {
+     "Type": "NO_CACHE"
+    },
+    "Description": "Builds Docker images for MCP servers",
+    "EncryptionKey": "alias/aws/s3",
+    "Environment": {
+     "ComputeType": "BUILD_GENERAL1_SMALL",
+     "EnvironmentVariables": [
+      {
+       "Name": "REPOSITORY_URI",
+       "Type": "PLAINTEXT",
+       "Value": {
+        "Fn::Join": [
+         "",
+         [
+          {
+           "Fn::Select": [
+            4,
+            {
+             "Fn::Split": [
+              ":",
+              {
+               "Fn::GetAtt": [
+                "MCPServerRepoA6EF8A41",
+                "Arn"
+               ]
+              }
+             ]
+            }
+           ]
+          },
+          ".dkr.ecr.",
+          {
+           "Fn::Select": [
+            3,
+            {
+             "Fn::Split": [
+              ":",
+              {
+               "Fn::GetAtt": [
+                "MCPServerRepoA6EF8A41",
+                "Arn"
+               ]
+              }
+             ]
+            }
+           ]
+          },
+          ".",
+          {
+           "Ref": "AWS::URLSuffix"
+          },
+          "/",
+          {
+           "Ref": "MCPServerRepoA6EF8A41"
+          }
+         ]
+        ]
+       }
+      },
+      {
+       "Name": "GITHUB_TOKEN",
+       "Type": "SECRETS_MANAGER",
+       "Value": {
+        "Fn::Join": [
+         "",
+         [
+          "arn:",
+          {
+           "Ref": "AWS::Partition"
+          },
+          ":secretsmanager:us-east-1:277502524328:secret:toolshed/github-token"
+         ]
+        ]
+       }
+      },
+      {
+       "Name": "DOCKERHUB_USERNAME",
+       "Type": "SECRETS_MANAGER",
+       "Value": {
+        "Fn::Join": [
+         "",
+         [
+          "arn:",
+          {
+           "Ref": "AWS::Partition"
+          },
+          ":secretsmanager:us-east-1:277502524328:secret:toolshed/dockerhub-credentials:username"
+         ]
+        ]
+       }
+      },
+      {
+       "Name": "DOCKERHUB_TOKEN",
+       "Type": "SECRETS_MANAGER",
+       "Value": {
+        "Fn::Join": [
+         "",
+         [
+          "arn:",
+          {
+           "Ref": "AWS::Partition"
+          },
+          ":secretsmanager:us-east-1:277502524328:secret:toolshed/dockerhub-credentials:token"
+         ]
+        ]
+       }
+      },
+      {
+       "Name": "DOCKER_BUILDKIT",
+       "Type": "PLAINTEXT",
+       "Value": "1"
+      }
+     ],
+     "Image": "aws/codebuild/amazonlinux2-x86_64-standard:4.0",
+     "ImagePullCredentialsType": "CODEBUILD",
+     "PrivilegedMode": true,
+     "Type": "LINUX_CONTAINER"
+    },
+    "Name": "ToolShed-MCP-Server-Build",
+    "ServiceRole": {
+     "Fn::GetAtt": [
+      "MCPServerBuildRole28056180",
+      "Arn"
+     ]
+    },
+    "Source": {
+     "BuildSpec": "{\n  \"version\": \"0.2\",\n  \"phases\": {\n    \"pre_build\": {\n      \"commands\": [\n        \"echo Logging in to Amazon ECR...\",\n        \"aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $REPOSITORY_URI\",\n        \"echo Logging in to Docker Hub...\",\n        \"echo $DOCKERHUB_TOKEN | docker login -u $DOCKERHUB_USERNAME --password-stdin\",\n        \"REPO_URL=$(echo $CODEBUILD_INITIATOR | cut -d/ -f2)\",\n        \"REPO_NAME=$(echo $REPO_URL | cut -d@ -f1)\",\n        \"echo \\\"Original repository name: $ORIGINAL_REPOSITORY_NAME\\\"\",\n        \"TIMESTAMP=$(date +%Y%m%d%H%M%S)\",\n        \"echo \\\"Create a sanitized image tag name (replace slashes with dashes)\\\"\",\n        \"SANITIZED_REPO_NAME=$(echo $REPOSITORY_NAME | tr \\\"/\\\" \\\"-\\\")\",\n        \"echo \\\"Use timestamp as fallback if CODEBUILD_RESOLVED_SOURCE_VERSION is empty\\\"\",\n        \"SOURCE_VERSION=${CODEBUILD_RESOLVED_SOURCE_VERSION:-$TIMESTAMP}\",\n        \"echo \\\"Important: Do not include a colon in IMAGE_TAG as it will be used in $REPOSITORY_URI:$IMAGE_TAG\\\"\",\n        \"IMAGE_TAG=\\\"${SANITIZED_REPO_NAME}-${SOURCE_VERSION}\\\"\",\n        \"echo \\\"Using image tag: $IMAGE_TAG\\\"\"\n      ]\n    },\n    \"build\": {\n      \"commands\": [\n        \"echo Cloning repository...\",\n        \"echo \\\"Using repository name: $REPOSITORY_NAME\\\"\",\n        \"echo \\\"Using original repository name: $ORIGINAL_REPOSITORY_NAME\\\"\",\n        \"echo \\\"Using server ID: $SERVER_ID\\\"\",\n        \"echo \\\"Always use the ORIGINAL_REPOSITORY_NAME for git clone as it has the correct format with slashes\\\"\",\n        \"echo \\\"Cloning from: $ORIGINAL_REPOSITORY_NAME\\\"\",\n        \"git clone \\\"https://$GITHUB_TOKEN@github.com/$ORIGINAL_REPOSITORY_NAME.git\\\" repo\",\n        \"cd repo\",\n        \"echo Building the Docker image...\",\n        \"echo \\\"Docker image tag: $REPOSITORY_URI:$IMAGE_TAG\\\"\",\n        \"echo \\\"Enabling Docker BuildKit explicitly...\\\"\",\n        \"export DOCKER_BUILDKIT=1\",\n        \"export DOCKER_BUILDX_EXPERIMENTAL=1\",\n        \"docker buildx install || echo \\\"Buildx already installed\\\"\",\n        \"docker buildx create --use --name codebuild_builder || echo \\\"Builder exists or couldn't be created\\\"\",\n        \"echo \\\"Checking Dockerfile for BuildKit-specific directives...\\\"\",\n        \"if grep -q \\\"\\\\-\\\\-mount=type=cache\\\" Dockerfile; then echo \\\"BuildKit cache mount found, creating compatible version\\\"; cp Dockerfile Dockerfile.original; sed \\\"s/RUN --mount=type=cache/RUN/\\\" Dockerfile > Dockerfile.nobuildkit; fi\",\n        \"docker buildx build --progress=plain -t $REPOSITORY_URI:$IMAGE_TAG . || (echo \\\"Docker buildx build failed, trying legacy build without cache...\\\"; docker build --no-cache -t $REPOSITORY_URI:$IMAGE_TAG . || (echo \\\"Docker build failed, checking if we need to use modified Dockerfile...\\\"; if [ -f Dockerfile.nobuildkit ]; then echo \\\"Trying build with BuildKit-compatible Dockerfile\\\"; docker build -f Dockerfile.nobuildkit -t $REPOSITORY_URI:$IMAGE_TAG . || (echo \\\"All build attempts failed, showing Dockerfile\\\"; cat Dockerfile; exit 1); else echo \\\"No BuildKit directives found to modify. Build failed.\\\"; cat Dockerfile; exit 1; fi))\",\n        \"docker tag $REPOSITORY_URI:$IMAGE_TAG $REPOSITORY_URI:latest\"\n      ]\n    },\n    \"post_build\": {\n      \"commands\": [\n        \"echo Pushing the Docker image...\",\n        \"docker push $REPOSITORY_URI:$IMAGE_TAG || (echo \\\"Docker push failed, verifying image exists...\\\"; docker images; exit 1)\",\n        \"docker push $REPOSITORY_URI:latest || echo \\\"Warning: Failed to push latest tag, but build ID tag was pushed successfully\\\"\",\n        \"echo Writing image definition file...\",\n        \"echo \\\"{\\\"imageUri\\\":\\\"$REPOSITORY_URI:$IMAGE_TAG\\\",\\\"serverId\\\":\\\"$SERVER_ID\\\"}\\\" > imageDefinition.json\"\n      ]\n    }\n  },\n  \"artifacts\": {\n    \"files\": [\n      \"imageDefinition.json\"\n    ]\n  }\n}",
+     "Type": "NO_SOURCE"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "ValidationPipelineStack/MCPServerBuild/Resource"
+   }
+  },
+  "ValidationClusterC8915CA8": {
+   "Type": "AWS::ECS::Cluster",
+   "Properties": {
+    "ClusterName": "ToolShed-Validation-Cluster"
+   },
+   "Metadata": {
+    "aws:cdk:path": "ValidationPipelineStack/ValidationCluster/Resource"
+   }
+  },
+  "MCPServerTaskRoleACEA80B3": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Statement": [
+      {
+       "Action": "sts:AssumeRole",
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "ecs-tasks.amazonaws.com"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "Description": "Role for MCP server tasks",
+    "RoleName": "ToolShed-Validation-MCP-Server-Task-Role"
+   },
+   "Metadata": {
+    "aws:cdk:path": "ValidationPipelineStack/MCPServerTaskRole/Resource"
+   }
+  },
+  "MCPServerExecutionRole42C2B8D9": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Statement": [
+      {
+       "Action": "sts:AssumeRole",
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "ecs-tasks.amazonaws.com"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "Description": "Execution role for MCP server tasks",
+    "ManagedPolicyArns": [
+     {
+      "Fn::Join": [
+       "",
+       [
+        "arn:",
+        {
+         "Ref": "AWS::Partition"
+        },
+        ":iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+       ]
+      ]
+     }
+    ],
+    "RoleName": "ToolShed-Validation-MCP-Server-Execution-Role"
+   },
+   "Metadata": {
+    "aws:cdk:path": "ValidationPipelineStack/MCPServerExecutionRole/Resource"
+   }
+  },
+  "MCPServerExecutionRoleDefaultPolicy8092073E": {
+   "Type": "AWS::IAM::Policy",
+   "Properties": {
+    "PolicyDocument": {
+     "Statement": [
+      {
+       "Action": [
+        "ecr:BatchCheckLayerAvailability",
+        "ecr:GetDownloadUrlForLayer",
+        "ecr:BatchGetImage"
+       ],
+       "Effect": "Allow",
+       "Resource": {
+        "Fn::GetAtt": [
+         "MCPServerRepoA6EF8A41",
+         "Arn"
+        ]
+       }
+      },
+      {
+       "Action": "ecr:GetAuthorizationToken",
+       "Effect": "Allow",
+       "Resource": "*"
+      },
+      {
+       "Action": [
+        "logs:CreateLogStream",
+        "logs:PutLogEvents"
+       ],
+       "Effect": "Allow",
+       "Resource": {
+        "Fn::GetAtt": [
+         "MCPServerTaskDefMCPServerContainerLogGroupE8AA777F",
+         "Arn"
+        ]
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "PolicyName": "MCPServerExecutionRoleDefaultPolicy8092073E",
+    "Roles": [
+     {
+      "Ref": "MCPServerExecutionRole42C2B8D9"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "ValidationPipelineStack/MCPServerExecutionRole/DefaultPolicy/Resource"
+   }
+  },
+  "MCPServerTaskDefDBB4F7C0": {
+   "Type": "AWS::ECS::TaskDefinition",
+   "Properties": {
+    "ContainerDefinitions": [
+     {
+      "Essential": true,
+      "Image": "amazon/amazon-ecs-sample",
+      "LogConfiguration": {
+       "LogDriver": "awslogs",
+       "Options": {
+        "awslogs-group": {
+         "Ref": "MCPServerTaskDefMCPServerContainerLogGroupE8AA777F"
+        },
+        "awslogs-stream-prefix": "mcp-server",
+        "awslogs-region": "us-east-1"
+       }
+      },
+      "Name": "MCPServerContainer",
+      "PortMappings": [
+       {
+        "ContainerPort": 8000,
+        "HostPort": 8000,
+        "Protocol": "tcp"
+       }
+      ]
+     }
+    ],
+    "Cpu": "256",
+    "ExecutionRoleArn": {
+     "Fn::GetAtt": [
+      "MCPServerExecutionRole42C2B8D9",
+      "Arn"
+     ]
+    },
+    "Family": "ValidationPipelineStackMCPServerTaskDef80539BDE",
+    "Memory": "512",
+    "NetworkMode": "awsvpc",
+    "RequiresCompatibilities": [
+     "FARGATE"
+    ],
+    "TaskRoleArn": {
+     "Fn::GetAtt": [
+      "MCPServerTaskRoleACEA80B3",
+      "Arn"
+     ]
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "ValidationPipelineStack/MCPServerTaskDef/Resource"
+   }
+  },
+  "MCPServerTaskDefMCPServerContainerLogGroupE8AA777F": {
+   "Type": "AWS::Logs::LogGroup",
+   "Properties": {
+    "RetentionInDays": 7
+   },
+   "UpdateReplacePolicy": "Retain",
+   "DeletionPolicy": "Retain",
+   "Metadata": {
+    "aws:cdk:path": "ValidationPipelineStack/MCPServerTaskDef/MCPServerContainer/LogGroup/Resource"
+   }
+  },
+  "ValidationFunctionServiceRole934D0B98": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Statement": [
+      {
+       "Action": "sts:AssumeRole",
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "lambda.amazonaws.com"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "ManagedPolicyArns": [
+     {
+      "Fn::Join": [
+       "",
+       [
+        "arn:",
+        {
+         "Ref": "AWS::Partition"
+        },
+        ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+       ]
+      ]
+     },
+     {
+      "Fn::Join": [
+       "",
+       [
+        "arn:",
+        {
+         "Ref": "AWS::Partition"
+        },
+        ":iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
+       ]
+      ]
+     }
+    ]
+   },
+   "DependsOn": [
+    "ValidationVpcPrivateSubnet1DefaultRoute37DA2BA4",
+    "ValidationVpcPrivateSubnet1RouteTableAssociation8E4B39D0",
+    "ValidationVpcPrivateSubnet2DefaultRoute3E979152",
+    "ValidationVpcPrivateSubnet2RouteTableAssociation4C09E4E7"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "ValidationPipelineStack/ValidationFunction/ServiceRole/Resource"
+   }
+  },
+  "ValidationFunctionServiceRoleDefaultPolicyE32E5084": {
+   "Type": "AWS::IAM::Policy",
+   "Properties": {
+    "PolicyDocument": {
+     "Statement": [
+      {
+       "Action": [
+        "dynamodb:GetItem",
+        "dynamodb:UpdateItem",
+        "dynamodb:PutItem"
+       ],
+       "Effect": "Allow",
+       "Resource": "arn:aws:dynamodb:us-east-1:277502524328:table/ToolShedServers"
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "PolicyName": "ValidationFunctionServiceRoleDefaultPolicyE32E5084",
+    "Roles": [
+     {
+      "Ref": "ValidationFunctionServiceRole934D0B98"
+     }
+    ]
+   },
+   "DependsOn": [
+    "ValidationVpcPrivateSubnet1DefaultRoute37DA2BA4",
+    "ValidationVpcPrivateSubnet1RouteTableAssociation8E4B39D0",
+    "ValidationVpcPrivateSubnet2DefaultRoute3E979152",
+    "ValidationVpcPrivateSubnet2RouteTableAssociation4C09E4E7"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "ValidationPipelineStack/ValidationFunction/ServiceRole/DefaultPolicy/Resource"
+   }
+  },
+  "ValidationFunctionB150DCA9": {
+   "Type": "AWS::Lambda::Function",
+   "Properties": {
+    "Code": {
+     "S3Bucket": "cdk-hnb659fds-assets-277502524328-us-east-1",
+     "S3Key": "4c4f49c66a97595fc0a67fd546d2c3845f694901c9f1cb497d37d12a3c35a2b1.zip"
+    },
+    "Environment": {
+     "Variables": {
+      "DYNAMODB_TABLE": "ToolShedServers"
+     }
+    },
+    "FunctionName": "ToolShed-MCP-Server-Validation",
+    "Handler": "index.handler",
+    "MemorySize": 512,
+    "Role": {
+     "Fn::GetAtt": [
+      "ValidationFunctionServiceRole934D0B98",
+      "Arn"
+     ]
+    },
+    "Runtime": "nodejs18.x",
+    "Timeout": 300,
+    "VpcConfig": {
+     "SecurityGroupIds": [
+      {
+       "Fn::GetAtt": [
+        "EcsSecurityGroup44008BF1",
+        "GroupId"
+       ]
+      }
+     ],
+     "SubnetIds": [
+      {
+       "Ref": "ValidationVpcPrivateSubnet1Subnet4675042B"
+      },
+      {
+       "Ref": "ValidationVpcPrivateSubnet2Subnet9B94DBBC"
+      }
+     ]
+    }
+   },
+   "DependsOn": [
+    "ValidationFunctionServiceRoleDefaultPolicyE32E5084",
+    "ValidationFunctionServiceRole934D0B98",
+    "ValidationVpcPrivateSubnet1DefaultRoute37DA2BA4",
+    "ValidationVpcPrivateSubnet1RouteTableAssociation8E4B39D0",
+    "ValidationVpcPrivateSubnet2DefaultRoute3E979152",
+    "ValidationVpcPrivateSubnet2RouteTableAssociation4C09E4E7"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "ValidationPipelineStack/ValidationFunction/Resource",
+    "aws:asset:path": "asset.4c4f49c66a97595fc0a67fd546d2c3845f694901c9f1cb497d37d12a3c35a2b1",
+    "aws:asset:is-bundled": false,
+    "aws:asset:property": "Code"
+   }
+  },
+  "StopTaskFunctionServiceRole403B9068": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Statement": [
+      {
+       "Action": "sts:AssumeRole",
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "lambda.amazonaws.com"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "ManagedPolicyArns": [
+     {
+      "Fn::Join": [
+       "",
+       [
+        "arn:",
+        {
+         "Ref": "AWS::Partition"
+        },
+        ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+       ]
+      ]
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "ValidationPipelineStack/StopTaskFunction/ServiceRole/Resource"
+   }
+  },
+  "StopTaskFunctionServiceRoleDefaultPolicyA75E149A": {
+   "Type": "AWS::IAM::Policy",
+   "Properties": {
+    "PolicyDocument": {
+     "Statement": [
+      {
+       "Action": "ecs:StopTask",
+       "Effect": "Allow",
+       "Resource": "*"
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "PolicyName": "StopTaskFunctionServiceRoleDefaultPolicyA75E149A",
+    "Roles": [
+     {
+      "Ref": "StopTaskFunctionServiceRole403B9068"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "ValidationPipelineStack/StopTaskFunction/ServiceRole/DefaultPolicy/Resource"
+   }
+  },
+  "StopTaskFunction11473A8C": {
+   "Type": "AWS::Lambda::Function",
+   "Properties": {
+    "Code": {
+     "ZipFile": "\n        const { ECSClient, StopTaskCommand } = require(\"@aws-sdk/client-ecs\");\n        \n        exports.handler = async (event) => {\n          const ecsClient = new ECSClient({ region: process.env.AWS_REGION });\n          \n          try {\n            const stopTaskCommand = new StopTaskCommand({\n              cluster: process.env.CLUSTER_ARN,\n              task: event.taskArn,\n              reason: 'Stopped by Step Functions'\n            });\n            \n            await ecsClient.send(stopTaskCommand);\n            \n            return { \n              success: true, \n              taskArn: event.taskArn \n            };\n          } catch (error) {\n            console.error('Error stopping task:', error);\n            throw error;\n          }\n        }\n      "
+    },
+    "Environment": {
+     "Variables": {
+      "CLUSTER_ARN": {
+       "Fn::GetAtt": [
+        "ValidationClusterC8915CA8",
+        "Arn"
+       ]
+      }
+     }
+    },
+    "FunctionName": "ToolShed-Stop-ECS-Task",
+    "Handler": "index.handler",
+    "Role": {
+     "Fn::GetAtt": [
+      "StopTaskFunctionServiceRole403B9068",
+      "Arn"
+     ]
+    },
+    "Runtime": "nodejs18.x",
+    "Timeout": 30
+   },
+   "DependsOn": [
+    "StopTaskFunctionServiceRoleDefaultPolicyA75E149A",
+    "StopTaskFunctionServiceRole403B9068"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "ValidationPipelineStack/StopTaskFunction/Resource"
+   }
+  },
+  "ValidationPipelineRole502F3E50": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Statement": [
+      {
+       "Action": "sts:AssumeRole",
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "states.amazonaws.com"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "ValidationPipelineStack/ValidationPipeline/Role/Resource"
+   }
+  },
+  "ValidationPipelineRoleDefaultPolicy14E6A436": {
+   "Type": "AWS::IAM::Policy",
+   "Properties": {
+    "PolicyDocument": {
+     "Statement": [
+      {
+       "Action": [
+        "codebuild:StartBuild",
+        "codebuild:StopBuild",
+        "codebuild:BatchGetBuilds",
+        "codebuild:BatchGetReports"
+       ],
+       "Effect": "Allow",
+       "Resource": {
+        "Fn::GetAtt": [
+         "MCPServerBuild453D3FD6",
+         "Arn"
+        ]
+       }
+      },
+      {
+       "Action": [
+        "events:PutTargets",
+        "events:PutRule",
+        "events:DescribeRule"
+       ],
+       "Effect": "Allow",
+       "Resource": {
+        "Fn::Join": [
+         "",
+         [
+          "arn:",
+          {
+           "Ref": "AWS::Partition"
+          },
+          ":events:us-east-1:277502524328:rule/StepFunctionsGetEventForCodeBuildStartBuildRule"
+         ]
+        ]
+       }
+      },
+      {
+       "Action": "ecs:RunTask",
+       "Effect": "Allow",
+       "Resource": {
+        "Fn::Join": [
+         "",
+         [
+          "arn:",
+          {
+           "Fn::Select": [
+            1,
+            {
+             "Fn::Split": [
+              ":",
+              {
+               "Ref": "MCPServerTaskDefDBB4F7C0"
+              }
+             ]
+            }
+           ]
+          },
+          ":",
+          {
+           "Fn::Select": [
+            2,
+            {
+             "Fn::Split": [
+              ":",
+              {
+               "Ref": "MCPServerTaskDefDBB4F7C0"
+              }
+             ]
+            }
+           ]
+          },
+          ":",
+          {
+           "Fn::Select": [
+            3,
+            {
+             "Fn::Split": [
+              ":",
+              {
+               "Ref": "MCPServerTaskDefDBB4F7C0"
+              }
+             ]
+            }
+           ]
+          },
+          ":",
+          {
+           "Fn::Select": [
+            4,
+            {
+             "Fn::Split": [
+              ":",
+              {
+               "Ref": "MCPServerTaskDefDBB4F7C0"
+              }
+             ]
+            }
+           ]
+          },
+          ":",
+          {
+           "Fn::Select": [
+            0,
+            {
+             "Fn::Split": [
+              "/",
+              {
+               "Fn::Select": [
+                5,
+                {
+                 "Fn::Split": [
+                  ":",
+                  {
+                   "Ref": "MCPServerTaskDefDBB4F7C0"
+                  }
+                 ]
+                }
+               ]
+              }
+             ]
+            }
+           ]
+          },
+          "/",
+          {
+           "Fn::Select": [
+            1,
+            {
+             "Fn::Split": [
+              "/",
+              {
+               "Fn::Select": [
+                5,
+                {
+                 "Fn::Split": [
+                  ":",
+                  {
+                   "Ref": "MCPServerTaskDefDBB4F7C0"
+                  }
+                 ]
+                }
+               ]
+              }
+             ]
+            }
+           ]
+          },
+          ":*"
+         ]
+        ]
+       }
+      },
+      {
+       "Action": [
+        "ecs:StopTask",
+        "ecs:DescribeTasks"
+       ],
+       "Effect": "Allow",
+       "Resource": "*"
+      },
+      {
+       "Action": "iam:PassRole",
+       "Effect": "Allow",
+       "Resource": [
+        {
+         "Fn::GetAtt": [
+          "MCPServerTaskRoleACEA80B3",
+          "Arn"
+         ]
+        },
+        {
+         "Fn::GetAtt": [
+          "MCPServerExecutionRole42C2B8D9",
+          "Arn"
+         ]
+        }
+       ]
+      },
+      {
+       "Action": [
+        "events:PutTargets",
+        "events:PutRule",
+        "events:DescribeRule"
+       ],
+       "Effect": "Allow",
+       "Resource": {
+        "Fn::Join": [
+         "",
+         [
+          "arn:",
+          {
+           "Ref": "AWS::Partition"
+          },
+          ":events:us-east-1:277502524328:rule/StepFunctionsGetEventsForECSTaskRule"
+         ]
+        ]
+       }
+      },
+      {
+       "Action": "lambda:InvokeFunction",
+       "Effect": "Allow",
+       "Resource": [
+        {
+         "Fn::GetAtt": [
+          "ValidationFunctionB150DCA9",
+          "Arn"
+         ]
+        },
+        {
+         "Fn::Join": [
+          "",
+          [
+           {
+            "Fn::GetAtt": [
+             "ValidationFunctionB150DCA9",
+             "Arn"
+            ]
+           },
+           ":*"
+          ]
+         ]
+        }
+       ]
+      },
+      {
+       "Action": "lambda:InvokeFunction",
+       "Effect": "Allow",
+       "Resource": [
+        {
+         "Fn::GetAtt": [
+          "StopTaskFunction11473A8C",
+          "Arn"
+         ]
+        },
+        {
+         "Fn::Join": [
+          "",
+          [
+           {
+            "Fn::GetAtt": [
+             "StopTaskFunction11473A8C",
+             "Arn"
+            ]
+           },
+           ":*"
+          ]
+         ]
+        }
+       ]
+      },
+      {
+       "Action": [
+        "xray:PutTraceSegments",
+        "xray:PutTelemetryRecords",
+        "xray:GetSamplingRules",
+        "xray:GetSamplingTargets"
+       ],
+       "Effect": "Allow",
+       "Resource": "*"
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "PolicyName": "ValidationPipelineRoleDefaultPolicy14E6A436",
+    "Roles": [
+     {
+      "Ref": "ValidationPipelineRole502F3E50"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "ValidationPipelineStack/ValidationPipeline/Role/DefaultPolicy/Resource"
+   }
+  },
+  "ValidationPipeline00FCC0C1": {
+   "Type": "AWS::StepFunctions::StateMachine",
+   "Properties": {
+    "DefinitionString": {
+     "Fn::Join": [
+      "",
+      [
+       "{\"StartAt\":\"BuildMCPServerImage\",\"States\":{\"BuildMCPServerImage\":{\"Next\":\"ParseImageUri\",\"Type\":\"Task\",\"ResultPath\":\"$.buildResult\",\"Resource\":\"arn:",
+       {
+        "Ref": "AWS::Partition"
+       },
+       ":states:::codebuild:startBuild.sync\",\"Parameters\":{\"ProjectName\":\"",
+       {
+        "Ref": "MCPServerBuild453D3FD6"
+       },
+       "\",\"EnvironmentVariablesOverride\":[{\"Name\":\"REPOSITORY_NAME\",\"Type\":\"PLAINTEXT\",\"Value.$\":\"$.repositoryName\"},{\"Name\":\"ORIGINAL_REPOSITORY_NAME\",\"Type\":\"PLAINTEXT\",\"Value.$\":\"$.originalRepositoryName\"},{\"Name\":\"SERVER_ID\",\"Type\":\"PLAINTEXT\",\"Value.$\":\"$.serverId\"}]}},\"ParseImageUri\":{\"Type\":\"Pass\",\"ResultPath\":\"$.imageDetails\",\"Parameters\":{\"imageUri.$\":\"$.buildResult.Build.Artifacts.Location\",\"serverId.$\":\"$.serverId\"},\"Next\":\"RunMCPServerContainer\"},\"RunMCPServerContainer\":{\"Next\":\"ValidateMCPServer\",\"Type\":\"Task\",\"ResultPath\":\"$.taskResult\",\"Resource\":\"arn:",
+       {
+        "Ref": "AWS::Partition"
+       },
+       ":states:::ecs:runTask.sync\",\"Parameters\":{\"Cluster\":\"",
+       {
+        "Fn::GetAtt": [
+         "ValidationClusterC8915CA8",
+         "Arn"
+        ]
+       },
+       "\",\"TaskDefinition\":\"ValidationPipelineStackMCPServerTaskDef80539BDE\",\"NetworkConfiguration\":{\"AwsvpcConfiguration\":{\"AssignPublicIp\":\"ENABLED\",\"Subnets\":[\"",
+       {
+        "Ref": "ValidationVpcPublicSubnet1Subnet77950CB6"
+       },
+       "\",\"",
+       {
+        "Ref": "ValidationVpcPublicSubnet2Subnet533BB13F"
+       },
+       "\"],\"SecurityGroups\":[\"",
+       {
+        "Fn::GetAtt": [
+         "EcsSecurityGroup44008BF1",
+         "GroupId"
+        ]
+       },
+       "\"]}},\"Overrides\":{\"ContainerOverrides\":[{\"Name\":\"MCPServerContainer\",\"Environment\":[{\"Name\":\"IMAGE_URI\",\"Value.$\":\"$.imageDetails.imageUri\"}]}]},\"LaunchType\":\"FARGATE\",\"PlatformVersion\":\"LATEST\"}},\"ValidateMCPServer\":{\"Next\":\"StopMCPServerContainer\",\"Retry\":[{\"ErrorEquals\":[\"Lambda.ClientExecutionTimeoutException\",\"Lambda.ServiceException\",\"Lambda.AWSLambdaException\",\"Lambda.SdkClientException\"],\"IntervalSeconds\":2,\"MaxAttempts\":6,\"BackoffRate\":2}],\"Type\":\"Task\",\"ResultPath\":\"$.validationResult\",\"Resource\":\"",
+       {
+        "Fn::GetAtt": [
+         "ValidationFunctionB150DCA9",
+         "Arn"
+        ]
+       },
+       "\",\"Parameters\":{\"serverId.$\":\"$.serverId\",\"endpoint.$\":\"$.taskResult.Attachments[0].Details[?(@.Name == \\\"networkConfiguration\\\")].Value.NetworkInterfaces[0].PublicIp\",\"taskArn.$\":\"$.taskResult.TaskArn\"}},\"StopMCPServerContainer\":{\"Next\":\"CheckValidationResult\",\"Retry\":[{\"ErrorEquals\":[\"Lambda.ClientExecutionTimeoutException\",\"Lambda.ServiceException\",\"Lambda.AWSLambdaException\",\"Lambda.SdkClientException\"],\"IntervalSeconds\":2,\"MaxAttempts\":6,\"BackoffRate\":2}],\"Type\":\"Task\",\"ResultPath\":\"$.cleanupResult\",\"Resource\":\"arn:",
+       {
+        "Ref": "AWS::Partition"
+       },
+       ":states:::lambda:invoke\",\"Parameters\":{\"FunctionName\":\"",
+       {
+        "Fn::GetAtt": [
+         "StopTaskFunction11473A8C",
+         "Arn"
+        ]
+       },
+       "\",\"Payload\":{\"taskArn.$\":\"$.taskResult.TaskArn\"}}},\"CheckValidationResult\":{\"Type\":\"Choice\",\"Choices\":[{\"Variable\":\"$.validationResult.body.verified\",\"BooleanEquals\":true,\"Next\":\"ValidationSucceeded\"}],\"Default\":\"ValidationFailed\"},\"ValidationFailed\":{\"Type\":\"Fail\",\"Error\":\"ServerValidationError\",\"Cause\":\"MCP server validation failed\"},\"ValidationSucceeded\":{\"Type\":\"Succeed\"}},\"TimeoutSeconds\":1800}"
+      ]
+     ]
+    },
+    "RoleArn": {
+     "Fn::GetAtt": [
+      "ValidationPipelineRole502F3E50",
+      "Arn"
+     ]
+    },
+    "StateMachineName": "ToolShed-MCP-Server-Validation-Pipeline",
+    "TracingConfiguration": {
+     "Enabled": true
+    }
+   },
+   "DependsOn": [
+    "ValidationPipelineRoleDefaultPolicy14E6A436",
+    "ValidationPipelineRole502F3E50"
+   ],
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "ValidationPipelineStack/ValidationPipeline/Resource"
+   }
+  },
+  "CDKMetadata": {
+   "Type": "AWS::CDK::Metadata",
+   "Properties": {
+    "Analytics": "v2:deflate64:H4sIAAAAAAAA/11SwW7bMAz9lt0ZbUsP3Y5J1hYB2s1whl4DWWZcxo5kSFSKwvC/j1Liut2Jj0/U4yOlpfr+46f69kW/hoWp20VHlRp2rE0LQu0HNEs1PPcGNgf7XGygiFVHZhcri5y4GZUuMv7VVYczP3OrEJwhzeTse3ECd9sihd+aHzTjq36DwtNZ4Cy8tYxe8FRwcXLNVixeX05oGXZooid+e/Au9tnDR2IENF4NJfYuEDufdeZsBONqrCJ1tRoK745ocvMrHIH0SW67y3Q5Fk42kWUuKHUIath0MYjhxE/wXvtGp0WE9hceyNK0hv8ZZ1mTRT9zI3SuEdVH17zPNWE506eq1mq4j9ZMmhMeIdzsdQjIQa1SkFyto2mR1zogiLP+cK0NexYnybwsYZ2WIF/Ac0ZwZ0IZs1V4zP229uxaHD8ryNakGeyiMYi1jEwdbF4cGQTRYnySZ5LR8rt8yMcRSgwueqnLLuWwIdukuj+R+yirt2JKHcPX8/JG3cpfPQaihY+W6YSqvMR/0il1O8gCAAA="
+   },
+   "Metadata": {
+    "aws:cdk:path": "ValidationPipelineStack/CDKMetadata/Default"
+   }
+  }
+ },
+ "Outputs": {
+  "StateMachineArn": {
+   "Description": "ARN of the validation pipeline state machine",
+   "Value": {
+    "Ref": "ValidationPipeline00FCC0C1"
+   },
+   "Export": {
+    "Name": "ToolShed-ValidationPipeline-StateMachineArn"
+   }
+  },
+  "EcrRepositoryUri": {
+   "Description": "URI of the ECR repository for MCP server images",
+   "Value": {
+    "Fn::Join": [
+     "",
+     [
+      {
+       "Fn::Select": [
+        4,
+        {
+         "Fn::Split": [
+          ":",
+          {
+           "Fn::GetAtt": [
+            "MCPServerRepoA6EF8A41",
+            "Arn"
+           ]
+          }
+         ]
+        }
+       ]
+      },
+      ".dkr.ecr.",
+      {
+       "Fn::Select": [
+        3,
+        {
+         "Fn::Split": [
+          ":",
+          {
+           "Fn::GetAtt": [
+            "MCPServerRepoA6EF8A41",
+            "Arn"
+           ]
+          }
+         ]
+        }
+       ]
+      },
+      ".",
+      {
+       "Ref": "AWS::URLSuffix"
+      },
+      "/",
+      {
+       "Ref": "MCPServerRepoA6EF8A41"
+      }
+     ]
+    ]
+   },
+   "Export": {
+    "Name": "ToolShed-ValidationPipeline-EcrRepositoryUri"
+   }
+  },
+  "EcsClusterName": {
+   "Description": "Name of the ECS cluster for validation tasks",
+   "Value": {
+    "Ref": "ValidationClusterC8915CA8"
+   },
+   "Export": {
+    "Name": "ToolShed-ValidationPipeline-EcsClusterName"
+   }
+  }
+ },
+ "Parameters": {
+  "BootstrapVersion": {
+   "Type": "AWS::SSM::Parameter::Value<String>",
+   "Default": "/cdk-bootstrap/hnb659fds/version",
+   "Description": "Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]"
+  }
+ },
+ "Rules": {
+  "CheckBootstrapVersion": {
+   "Assertions": [
+    {
+     "Assert": {
+      "Fn::Not": [
+       {
+        "Fn::Contains": [
+         [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5"
+         ],
+         {
+          "Ref": "BootstrapVersion"
+         }
+        ]
+       }
+      ]
+     },
+     "AssertDescription": "CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI."
+    }
+   ]
+  }
+ }
+}

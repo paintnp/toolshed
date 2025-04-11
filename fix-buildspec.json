@@ -1,0 +1,49 @@
+{
+  "version": "0.2",
+  "phases": {
+    "pre_build": {
+      "commands": [
+        "echo Logging in to Amazon ECR...",
+        "aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $REPOSITORY_URI",
+        "REPO_URL=$(echo $CODEBUILD_INITIATOR | cut -d/ -f2)",
+        "REPO_NAME=$(echo $REPO_URL | cut -d@ -f1)",
+        "IMAGE_TAG=${REPOSITORY_NAME}:${CODEBUILD_RESOLVED_SOURCE_VERSION}",
+        "# Extract the owner and repo parts",
+        "REPO_PARTS=(${REPOSITORY_NAME//-/ })",
+        "if [ ${#REPO_PARTS[@]} -ge 2 ]; then",
+        "  ORIGINAL_REPOSITORY_NAME=\"${REPO_PARTS[0]}/${REPO_PARTS[1]}\"",
+        "  echo \"Extracted repository parts: Owner=${REPO_PARTS[0]}, Repo=${REPO_PARTS[1]}\"",
+        "else",
+        "  ORIGINAL_REPOSITORY_NAME=$REPOSITORY_NAME",
+        "  echo \"Could not parse repository parts, using as is: $REPOSITORY_NAME\"",
+        "fi",
+        "echo Using repository name for Docker tags: $REPOSITORY_NAME",
+        "echo Using repository name for Git clone: $ORIGINAL_REPOSITORY_NAME"
+      ]
+    },
+    "build": {
+      "commands": [
+        "echo Cloning repository...",
+        "git clone https://$GITHUB_TOKEN@github.com/$ORIGINAL_REPOSITORY_NAME.git repo",
+        "cd repo",
+        "echo Building the Docker image...",
+        "docker build -t $REPOSITORY_URI:$IMAGE_TAG .",
+        "docker tag $REPOSITORY_URI:$IMAGE_TAG $REPOSITORY_URI:latest"
+      ]
+    },
+    "post_build": {
+      "commands": [
+        "echo Pushing the Docker image...",
+        "docker push $REPOSITORY_URI:$IMAGE_TAG",
+        "docker push $REPOSITORY_URI:latest",
+        "echo Writing image definition file...",
+        "echo \"{\\\"imageUri\\\":\\\"$REPOSITORY_URI:$IMAGE_TAG\\\"}\" > imageDefinition.json"
+      ]
+    }
+  },
+  "artifacts": {
+    "files": [
+      "imageDefinition.json"
+    ]
+  }
+} 

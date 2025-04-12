@@ -81,6 +81,9 @@ export interface ServerRecord {
   status?: string;       // Status message
   endpoint?: string;     // Server endpoint if known
   lastUpdated?: number;  // Last update timestamp
+  imageUri?: string;     // ECR image URI for the verified server
+  imageTag?: string;     // Docker image tag
+  lastVerifiedSha?: string; // Git commit SHA of the last verification
 }
 
 /**

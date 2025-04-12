@@ -1,0 +1,13 @@
+{
+  "name": "mcp-server-validation-lambda",
+  "version": "1.0.0",
+  "description": "Lambda function for validating MCP servers",
+  "main": "index.js",
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.300.0",
+    "@aws-sdk/lib-dynamodb": "^3.300.0"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+} 

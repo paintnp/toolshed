@@ -22,13 +22,50 @@ export const handler = async (event: any): Promise<any> => {
   
   try {
     // Extract information from the event
-    const { serverId, endpoint, taskArn } = event;
+    const { serverId, endpoint, taskArn, imageDetails } = event;
     
-    if (!serverId || !endpoint) {
-      throw new Error('Missing required parameters: serverId and endpoint must be provided');
+    if (!serverId) {
+      throw new Error('Missing required parameter: serverId must be provided');
     }
     
-    console.log(`Validating MCP server ${serverId} at endpoint ${endpoint}`);
+    console.log(`Validating MCP server ${serverId} at endpoint ${endpoint || 'unknown'}`);
+    
+    // Extract image URI information if available
+    const imageUri = imageDetails?.imageUri;
+    const imageTag = imageDetails?.imageTag;
+    const lastVerifiedSha = imageDetails?.lastVerifiedSha;
+    
+    console.log(`Image URI: ${imageUri || 'Not provided'}`);
+    console.log(`Image Tag: ${imageTag || 'Not provided'}`);
+    console.log(`Last Verified SHA: ${lastVerifiedSha || 'Not provided'}`);
+    
+    // If no endpoint is provided, this might be just a metadata update
+    // In this case, we can still update the server record with the image information
+    if (!endpoint) {
+      console.log('No endpoint provided, updating metadata only');
+      
+      // Prepare metadata for DynamoDB update
+      const metadataUpdate = {
+        status: 'Image metadata updated',
+        lastTested: Date.now(),
+        taskArn,
+        ...(imageUri && { imageUri }),
+        ...(imageTag && { imageTag }),
+        ...(lastVerifiedSha && { lastVerifiedSha })
+      };
+      
+      // Update DynamoDB with metadata
+      await updateServerVerification(serverId, true, metadataUpdate);
+      
+      return {
+        verified: true,
+        message: 'Image metadata updated successfully',
+        serverId,
+        imageUri,
+        imageTag,
+        lastVerifiedSha
+      };
+    }
     
     // Test server connection
     const isConnected = await testServerConnection(endpoint);
@@ -37,6 +74,9 @@ export const handler = async (event: any): Promise<any> => {
         status: 'Connection failed',
         lastTested: Date.now(),
         taskArn,
+        ...(imageUri && { imageUri }),
+        ...(imageTag && { imageTag }),
+        ...(lastVerifiedSha && { lastVerifiedSha })
       });
       return {
         statusCode: 400,
@@ -55,6 +95,9 @@ export const handler = async (event: any): Promise<any> => {
         status: 'No tools found',
         lastTested: Date.now(),
         taskArn,
+        ...(imageUri && { imageUri }),
+        ...(imageTag && { imageTag }),
+        ...(lastVerifiedSha && { lastVerifiedSha })
       });
       return {
         statusCode: 400,
@@ -84,7 +127,10 @@ export const handler = async (event: any): Promise<any> => {
       taskArn,
       sampleTool: tools.length > 0 ? tools[0].name : '',
       sampleOutput: sampleToolResult.output ? JSON.stringify(sampleToolResult.output).substring(0, 1000) : '',
-      sampleRunSuccess: sampleToolResult.success
+      sampleRunSuccess: sampleToolResult.success,
+      ...(imageUri && { imageUri }),
+      ...(imageTag && { imageTag }),
+      ...(lastVerifiedSha && { lastVerifiedSha })
     });
     
     return {
@@ -93,7 +139,10 @@ export const handler = async (event: any): Promise<any> => {
         verified: true,
         message: 'Server verified successfully',
         serverId,
-        toolCount: tools.length
+        toolCount: tools.length,
+        imageUri,
+        imageTag,
+        lastVerifiedSha
       }
     };
   } catch (error) {
@@ -105,7 +154,10 @@ export const handler = async (event: any): Promise<any> => {
         await updateServerVerification(event.serverId, false, {
           status: `Error: ${error instanceof Error ? error.message : String(error)}`,
           lastTested: Date.now(),
-          taskArn: event.taskArn
+          taskArn: event.taskArn,
+          ...(event.imageDetails?.imageUri && { imageUri: event.imageDetails.imageUri }),
+          ...(event.imageDetails?.imageTag && { imageTag: event.imageDetails.imageTag }),
+          ...(event.imageDetails?.lastVerifiedSha && { lastVerifiedSha: event.imageDetails.lastVerifiedSha })
         });
       } catch (dbError) {
         console.error('Failed to update DynamoDB with error:', dbError);
@@ -281,12 +333,18 @@ async function updateServerVerification(
     
     // Add all verification data to update expression
     Object.entries(verificationData).forEach(([key, value]) => {
-      updateExpression += `, ${key} = :${key}`;
-      expressionAttributeValues[`:${key}`] = value;
+      // Skip null or undefined values
+      if (value !== null && value !== undefined) {
+        updateExpression += `, ${key} = :${key}`;
+        expressionAttributeValues[`:${key}`] = value;
+      }
     });
     
     // Add lastUpdated timestamp
     updateExpression += ', lastUpdated = :lastUpdated';
+    
+    console.log(`Updating DynamoDB for server ${serverId} with expression: ${updateExpression}`);
+    console.log('Expression attribute values:', JSON.stringify(expressionAttributeValues, null, 2));
     
     // Update DynamoDB
     const updateCommand = new UpdateCommand({
@@ -297,7 +355,8 @@ async function updateServerVerification(
       ReturnValues: 'ALL_NEW'
     });
     
-    await docClient.send(updateCommand);
+    const result = await docClient.send(updateCommand);
+    console.log('DynamoDB update result:', JSON.stringify(result, null, 2));
     return true;
   } catch (error) {
     console.error(`Error updating server verification in DynamoDB for ${serverId}:`, error);

@@ -142,7 +142,8 @@ export class ValidationPipelineStack extends cdk.Stack {
               'echo "Important: Do not include a colon in IMAGE_TAG as it will be used in $REPOSITORY_URI:$IMAGE_TAG"',
               'IMAGE_TAG="${SANITIZED_REPO_NAME}-${SOURCE_VERSION}"',
               'echo "Using image tag: $IMAGE_TAG"',
-              'export IMAGE_TAG'
+              'export IMAGE_TAG',
+              'echo "Source commit SHA: $CODEBUILD_RESOLVED_SOURCE_VERSION"'
             ]
           },
           build: {
@@ -180,7 +181,7 @@ export class ValidationPipelineStack extends cdk.Stack {
               'docker push $REPOSITORY_URI:latest || echo "Warning: Failed to push latest tag, but build ID tag was pushed successfully"',
               'echo Writing image definition file...',
               'echo "{\"imageUri\":\"$REPOSITORY_URI:$IMAGE_TAG\",\"serverId\":\"$SERVER_ID\"}" > imageDefinition.json',
-              'echo "{\"imageUri\":\"$REPOSITORY_URI:$IMAGE_TAG\",\"repositoryUri\":\"$REPOSITORY_URI\",\"imageTag\":\"$IMAGE_TAG\",\"serverId\":\"$SERVER_ID\"}" > image-details.json'
+              'echo "{\"imageUri\":\"$REPOSITORY_URI:$IMAGE_TAG\",\"repositoryUri\":\"$REPOSITORY_URI\",\"imageTag\":\"$IMAGE_TAG\",\"lastVerifiedSha\":\"$CODEBUILD_RESOLVED_SOURCE_VERSION\",\"serverId\":\"$SERVER_ID\"}" > image-details.json'
             ]
           }
         },
@@ -288,6 +289,8 @@ export class ValidationPipelineStack extends cdk.Stack {
           
           // Construct the image URI from the available information
           let imageUri;
+          let imageTag;
+          let lastVerifiedSha;
           let serverId = event.serverId;
           
           try {
@@ -302,6 +305,9 @@ export class ValidationPipelineStack extends cdk.Stack {
               // Get repository name and server ID 
               const repoName = build.Environment.EnvironmentVariables
                 .find(v => v.Name === 'REPOSITORY_NAME')?.Value;
+              
+              // Get commit SHA from source version (if available)
+              lastVerifiedSha = build.SourceVersion || null;
               
               // Get the timestamp from the build logs or buildNumber as fallback
               const buildNumber = build.BuildNumber.toString().padStart(3, '0');
@@ -319,9 +325,11 @@ export class ValidationPipelineStack extends cdk.Stack {
               if (repoName && repoUri) {
                 const sanitizedRepoName = repoName.replace(/\\//g, '-');
                 // Use the buildNumber to ensure uniqueness
-                const imageTag = \`\${sanitizedRepoName}-\${timestamp}-\${buildNumber}\`;
+                imageTag = \`\${sanitizedRepoName}-\${timestamp}-\${buildNumber}\`;
                 imageUri = \`\${repoUri}:\${imageTag}\`;
                 console.log('Constructed image URI:', imageUri);
+                console.log('Image tag:', imageTag);
+                console.log('Last verified SHA:', lastVerifiedSha);
               }
             }
             
@@ -332,6 +340,8 @@ export class ValidationPipelineStack extends cdk.Stack {
             
             return {
               imageUri,
+              imageTag,
+              lastVerifiedSha,
               serverId
             };
           } catch (error) {
@@ -446,6 +456,7 @@ export class ValidationPipelineStack extends cdk.Stack {
         serverId: sfn.JsonPath.stringAt('$.serverId'),
         endpoint: sfn.JsonPath.stringAt('$.taskDescription.Tasks[0].Attachments[0].Details[?(@.Name == "networkConfiguration")].Value.NetworkInterfaces[0].PublicIp'),
         taskArn: sfn.JsonPath.stringAt('$.taskDescription.Tasks[0].TaskArn'),
+        imageDetails: sfn.JsonPath.objectAt('$.imageDetails')
       }),
       resultPath: '$.validationResult',
     });

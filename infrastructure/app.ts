@@ -1,7 +1,9 @@
 #!/usr/bin/env node
+import 'source-map-support/register';
 import * as cdk from 'aws-cdk-lib';
 import * as dotenv from 'dotenv';
 import { ValidationPipelineStack } from './ValidationPipelineStack';
+import { TestValidationWorkflow } from './TestValidationWorkflow';
 
 // Load environment variables from .env.local
 dotenv.config({ path: '.env.local' });
@@ -27,6 +29,14 @@ new ValidationPipelineStack(app, 'ValidationPipelineStack', {
   tags: {
     Project: 'ToolShed',
     Component: 'ValidationPipeline',
+  },
+});
+
+// Test workflow for direct validation testing
+new TestValidationWorkflow(app, 'TestValidationWorkflow', {
+  env: { 
+    account: process.env.CDK_DEFAULT_ACCOUNT, 
+    region: process.env.CDK_DEFAULT_REGION 
   },
 });
 

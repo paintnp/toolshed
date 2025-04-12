@@ -39,3 +39,26 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# AWS CDK
+**/cdk.out/
+**/.cdk.staging/
+**/asset-input/
+**/asset-output/
+**/cdk-outputs.json
+
+# TypeScript compiled output
+infrastructure/dist/
+**/lambda-dist/
+**/*.js.map
+
+# Local testing scripts (decide which ones to commit individually)
+run_*.sh
+scripts/local_*.ts
+
+# Local AWS config
+.aws-sam/
+samconfig.toml
+
+# logs
+*.log

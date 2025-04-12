@@ -1,0 +1,22 @@
+# CDK outputs
+cdk.out/
+.cdk.staging/
+cdk-outputs.json
+
+# TypeScript compiled files
+dist/
+*.js
+*.d.ts
+!jest.config.js
+*.js.map
+
+# Node.js dependencies
+node_modules/
+
+# CDK asset directories
+asset.*/
+
+# Local testing state
+*.local
+.env
+.env.local 

@@ -8,9 +8,7 @@ import {
   UpdateCommand,
   DeleteCommand
 } from "@aws-sdk/lib-dynamodb";
-
-// Table name for MCP servers
-const TABLE_NAME = "ToolShedServers";
+import { getDatabaseConfig } from "../aws/config";
 
 // Create DynamoDB client
 const ddbClient = new DynamoDBClient({ 
@@ -26,6 +24,20 @@ const docClient = DynamoDBDocumentClient.from(ddbClient, {
     removeUndefinedValues: true,
   }
 });
+
+// Table name is loaded dynamically from config
+let SERVERS_TABLE_NAME: string | null = null;
+
+/**
+ * Get the table name, fetching from config if not already loaded
+ */
+async function getTableName(): Promise<string> {
+  if (!SERVERS_TABLE_NAME) {
+    const config = await getDatabaseConfig();
+    SERVERS_TABLE_NAME = config.tableName;
+  }
+  return SERVERS_TABLE_NAME;
+}
 
 /**
  * Check if AWS credentials are properly configured
@@ -46,14 +58,15 @@ export async function checkAwsCredentials(): Promise<boolean> {
  */
 export async function tableExists(): Promise<boolean> {
   try {
-    console.log(`Checking if table ${TABLE_NAME} exists`);
+    const tableName = await getTableName();
+    console.log(`Checking if table ${tableName} exists`);
     // Try to describe the table
-    const command = new DescribeTableCommand({ TableName: TABLE_NAME });
+    const command = new DescribeTableCommand({ TableName: tableName });
     await ddbClient.send(command);
-    console.log(`Table ${TABLE_NAME} exists`);
+    console.log(`Table ${tableName} exists`);
     return true;
   } catch (error) {
-    console.error(`Error checking if table ${TABLE_NAME} exists:`, error);
+    console.error(`Error checking if table ${await getTableName()} exists:`, error);
     return false;
   }
 }
@@ -84,6 +97,7 @@ export interface ServerRecord {
   imageUri?: string;     // ECR image URI for the verified server
   imageTag?: string;     // Docker image tag
   lastVerifiedSha?: string; // Git commit SHA of the last verification
+  taskArn?: string;      // Task ARN for running playground
 }
 
 /**
@@ -93,22 +107,48 @@ export interface ServerRecord {
  * @returns {Promise<ServerRecord>} Saved server record
  */
 export async function saveServer(server: ServerRecord): Promise<ServerRecord> {
+  // Ensure required fields are present
+  if (!server.ServerId) {
+    throw new Error('ServerId is required');
+  }
+
+  // Get the existing server if it exists to compare and merge fields
+  let existingServer: ServerRecord | null = null;
   try {
-    // Set lastUpdated timestamp
-    const updatedServer = {
-      ...server,
-      lastUpdated: Date.now()
+    existingServer = await getServer(server.ServerId);
+  } catch (error) {
+    // No existing server, will create new one
+    console.log(`Creating new server record for ${server.ServerId}`);
+  }
+
+  // Set last updated timestamp
+  server.lastUpdated = Date.now();
+
+  // If we have an imageUri but no imageTag, extract the tag from the URI
+  if (server.imageUri && !server.imageTag && typeof server.imageUri === 'string') {
+    const tagMatch = server.imageUri.match(/:([^:]+)$/);
+    if (tagMatch && tagMatch[1]) {
+      server.imageTag = tagMatch[1];
+      console.log(`Extracted image tag ${server.imageTag} from imageUri`);
+    }
+  }
+
+  try {
+    const tableName = await getTableName();
+    
+    // Use the Document Client's native marshalling instead of manual marshalling
+    // This will handle the correct formatting of the ServerId as a string
+    const params = {
+      TableName: tableName,
+      Item: server  // Document Client will handle conversion automatically
     };
     
-    // Put item in DynamoDB
-    await docClient.send(new PutCommand({
-      TableName: TABLE_NAME,
-      Item: updatedServer
-    }));
+    await docClient.send(new PutCommand(params));
     
-    return updatedServer;
+    console.log(`Saved server record for ${server.ServerId}`);
+    return server;
   } catch (error) {
-    console.error('Error saving server to DynamoDB:', error);
+    console.error('Error saving server record:', error);
     throw error;
   }
 }
@@ -121,8 +161,10 @@ export async function saveServer(server: ServerRecord): Promise<ServerRecord> {
  */
 export async function getServer(serverId: string): Promise<ServerRecord | null> {
   try {
+    const tableName = await getTableName();
+    
     const response = await docClient.send(new GetCommand({
-      TableName: TABLE_NAME,
+      TableName: tableName,
       Key: {
         ServerId: serverId
       }
@@ -143,9 +185,11 @@ export async function getServer(serverId: string): Promise<ServerRecord | null> 
  */
 export async function getServerByFullName(fullName: string): Promise<ServerRecord | null> {
   try {
+    const tableName = await getTableName();
+    
     // Use a scan with a filter expression
     const response = await docClient.send(new ScanCommand({
-      TableName: TABLE_NAME,
+      TableName: tableName,
       FilterExpression: "fullName = :fullName",
       ExpressionAttributeValues: {
         ":fullName": fullName
@@ -171,8 +215,10 @@ export async function getServerByFullName(fullName: string): Promise<ServerRecor
  */
 export async function listAllServers(): Promise<ServerRecord[]> {
   try {
+    const tableName = await getTableName();
+    
     const response = await docClient.send(new ScanCommand({
-      TableName: TABLE_NAME
+      TableName: tableName
     }));
     
     return (response.Items || []) as ServerRecord[];
@@ -215,8 +261,10 @@ export async function queryServersByName(query: string): Promise<ServerRecord[]>
  */
 export async function listVerifiedServers(): Promise<ServerRecord[]> {
   try {
+    const tableName = await getTableName();
+    
     const response = await docClient.send(new ScanCommand({
-      TableName: TABLE_NAME,
+      TableName: tableName,
       FilterExpression: "verified = :verified",
       ExpressionAttributeValues: {
         ":verified": true
@@ -283,8 +331,10 @@ export async function updateServerVerification(
  */
 export async function deleteServer(serverId: string): Promise<boolean> {
   try {
+    const tableName = await getTableName();
+    
     await docClient.send(new DeleteCommand({
-      TableName: TABLE_NAME,
+      TableName: tableName,
       Key: {
         ServerId: serverId
       }

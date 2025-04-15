@@ -11,13 +11,17 @@ const TABLE_NAME = process.env.DYNAMODB_TABLE || 'ToolShedServers';
 exports.handler = async (event) => {
   console.log('Validation event:', JSON.stringify(event));
   
-  const { serverId, endpoint, taskArn, imageDetails } = event;
+  const { serverId, endpoint, taskArn, imageDetails, executionArn } = event;
   
   // Log image details if present
   if (imageDetails) {
     console.log('Image URI:', imageDetails.imageUri || 'Not provided');
     console.log('Image Tag:', imageDetails.imageTag || 'Not provided');
     console.log('Last Verified SHA:', imageDetails.lastVerifiedSha || 'Not provided');
+  }
+  
+  if (executionArn) {
+    console.log('Execution ARN:', executionArn);
   }
   
   if (!serverId) {
@@ -37,7 +41,8 @@ exports.handler = async (event) => {
       const metadataUpdate = {
         status: 'Image metadata updated',
         lastTested: Date.now(),
-        taskArn,
+        ...(taskArn && { taskArn }),
+        ...(executionArn && { executionArn }), // Store the execution ARN if provided
         ...(imageDetails?.imageUri && { imageUri: imageDetails.imageUri }),
         ...(imageDetails?.imageTag && { imageTag: imageDetails.imageTag }),
         ...(imageDetails?.lastVerifiedSha && { lastVerifiedSha: imageDetails.lastVerifiedSha })
@@ -50,6 +55,7 @@ exports.handler = async (event) => {
         verified: true,
         message: 'Image metadata updated successfully',
         serverId,
+        ...(executionArn && { executionArn }),
         imageUri: imageDetails?.imageUri,
         imageTag: imageDetails?.imageTag,
         lastVerifiedSha: imageDetails?.lastVerifiedSha
@@ -60,6 +66,7 @@ exports.handler = async (event) => {
     // In a real implementation, we would test the connection and validate tools
     console.log('Validating server at endpoint:', endpoint);
     console.log('Task ARN:', taskArn || 'Not provided');
+    console.log('Execution ARN:', executionArn || 'Not provided');
     console.log('Server ID:', serverId);
     
     // Update DynamoDB with validation results
@@ -67,7 +74,8 @@ exports.handler = async (event) => {
       status: 'Verified',
       lastTested: Date.now(),
       endpoint,
-      taskArn,
+      ...(taskArn && { taskArn }),
+      ...(executionArn && { executionArn }), // Always store the execution ARN when available
       ...(imageDetails?.imageUri && { imageUri: imageDetails.imageUri }),
       ...(imageDetails?.imageTag && { imageTag: imageDetails.imageTag }),
       ...(imageDetails?.lastVerifiedSha && { lastVerifiedSha: imageDetails.lastVerifiedSha })
@@ -77,7 +85,8 @@ exports.handler = async (event) => {
       verified: true,
       health: { status: 'healthy', endpoint },
       serverId,
-      taskArn,
+      ...(taskArn && { taskArn }),
+      ...(executionArn && { executionArn }),
       // Pass through image details if they exist
       ...(imageDetails && {
         imageUri: imageDetails.imageUri,
@@ -93,7 +102,8 @@ exports.handler = async (event) => {
       await updateServerVerification(serverId, false, {
         status: `Error: ${error.message || 'Unknown error'}`,
         lastTested: Date.now(),
-        taskArn,
+        ...(taskArn && { taskArn }),
+        ...(executionArn && { executionArn }),
         ...(imageDetails?.imageUri && { imageUri: imageDetails.imageUri }),
         ...(imageDetails?.imageTag && { imageTag: imageDetails.imageTag }),
         ...(imageDetails?.lastVerifiedSha && { lastVerifiedSha: imageDetails.lastVerifiedSha })
@@ -106,7 +116,8 @@ exports.handler = async (event) => {
       verified: false,
       error: error.message,
       serverId,
-      taskArn
+      ...(taskArn && { taskArn }),
+      ...(executionArn && { executionArn })
     };
   }
 };

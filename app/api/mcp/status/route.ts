@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServer, saveServer } from '@/lib/db/dynamodb';
 import { getValidationStatus } from '@/lib/aws/fargate';
+import { checkContainerStatus } from '@/lib/aws/fargate';
 
 /**
  * GET /api/mcp/status?serverId=owner/repo
@@ -28,8 +29,21 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // If no task ARN, it means validation hasn't started or it's an old record
-    if (!serverRecord.taskArn) {
+    // Prioritize executionArn if it exists, otherwise use taskArn
+    const executionArn = serverRecord.executionArn;
+    const taskArn = serverRecord.taskArn;
+    
+    // Check if taskArn is actually a Step Functions execution ARN (this can happen in older records)
+    const isTaskArnActuallyExecution = taskArn && 
+      taskArn.includes(':states:') && 
+      taskArn.includes(':execution:');
+    
+    // If we have an executionArn already, use that, otherwise check if taskArn is actually an execution ARN
+    const effectiveExecutionArn = executionArn || (isTaskArnActuallyExecution ? taskArn : undefined);
+    const effectiveTaskArn = isTaskArnActuallyExecution ? undefined : taskArn;
+    
+    // If neither ARN exists, the validation hasn't started yet
+    if (!effectiveExecutionArn && !effectiveTaskArn) {
       return NextResponse.json({
         success: true,
         status: serverRecord.status || 'UNKNOWN',
@@ -39,8 +53,44 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    // Check status from Step Functions
-    const statusResult = await getValidationStatus(serverRecord.taskArn);
+    // Check the validation status
+    let statusResult;
+    let arnType = 'unknown';
+    
+    // Prioritize checking the Step Functions execution since it gives better status
+    if (effectiveExecutionArn) {
+      try {
+        statusResult = await getValidationStatus(effectiveExecutionArn);
+        arnType = 'execution';
+      } catch (error) {
+        console.error('Error checking execution status, falling back to task ARN:', error);
+        // If execution ARN check fails, fall back to task ARN
+        if (effectiveTaskArn) {
+          const containerStatus = await checkContainerStatus(effectiveTaskArn);
+          statusResult = {
+            status: containerStatus.status || 'UNKNOWN',
+            success: containerStatus.running,
+            error: containerStatus.error
+          };
+          arnType = 'task';
+        } else {
+          statusResult = {
+            status: 'ERROR',
+            success: false,
+            error: 'Failed to check execution status and no task ARN available'
+          };
+        }
+      }
+    } else if (effectiveTaskArn) {
+      // If only task ARN is available, use that
+      const containerStatus = await checkContainerStatus(effectiveTaskArn);
+      statusResult = {
+        status: containerStatus.status || 'UNKNOWN',
+        success: containerStatus.running,
+        error: containerStatus.error
+      };
+      arnType = 'task';
+    }
     
     // Update server record if status has changed
     if (statusResult.status !== serverRecord.status) {
@@ -73,10 +123,11 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       success: true,
       status: serverRecord.status,
-      sfnStatus: statusResult.status,
+      statusDetails: statusResult.status,
       verified: serverRecord.verified,
-      message: `Validation pipeline status: ${statusResult.status}`,
+      message: `Validation ${arnType === 'execution' ? 'pipeline' : 'task'} status: ${statusResult.status}`,
       serverId,
+      arnType,
       error: statusResult.error
     });
   } catch (error) {

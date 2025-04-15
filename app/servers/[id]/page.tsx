@@ -183,11 +183,25 @@ export default async function ServerDetail({ params }: { params: { id: string } 
                     </a>
                   </div>
                 )}
+                {server.verified && (
+                  <div className="flex items-center gap-2">
+                    <span className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 text-xs px-2 py-1 rounded">
+                      Verified
+                    </span>
+                    {server.lastVerifiedSha && (
+                      <span className="text-xs text-gray-500 dark:text-gray-400">
+                        SHA: {server.lastVerifiedSha.substring(0, 7)}
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
               <div className="flex gap-3">
-                <Link href={`/playground?server=${encodeURIComponent(server.ServerId)}`}>
-                  <Button className="w-full md:w-auto">Try in Playground</Button>
-                </Link>
+                {server.verified && server.imageUri && (
+                  <Link href={`/playground?serverId=${encodeURIComponent(server.ServerId)}`}>
+                    <Button className="w-full md:w-auto">Try in Playground</Button>
+                  </Link>
+                )}
                 <Button variant="outline" className="w-full md:w-auto">View Documentation</Button>
               </div>
             </div>

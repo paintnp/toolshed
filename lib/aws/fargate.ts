@@ -17,35 +17,84 @@ import {
 } from "@aws-sdk/client-cloudwatch-logs";
 import { SFNClient, StartExecutionCommand, DescribeExecutionCommand } from "@aws-sdk/client-sfn";
 import { ServerRecord } from '../db/dynamodb';
+import { getNetworkConfig, getValidationConfig } from './config';
 
-// Load environment variables from .env.local
-import dotenv from 'dotenv';
-dotenv.config({ path: '.env.local' });
-
-// Configuration with defaults that can be overridden
+// Configuration defaults that will be overridden by fetched config
 const DEFAULT_CONFIG = {
-  cluster: process.env.AWS_ECS_CLUSTER || 'ToolShedCluster',
-  region: process.env.AWS_REGION || 'us-east-1',
-  subnets: process.env.AWS_SUBNETS ? process.env.AWS_SUBNETS.split(',') : [],
-  securityGroups: process.env.AWS_SECURITY_GROUP_ID ? [process.env.AWS_SECURITY_GROUP_ID] : [],
-  taskDefinitionFamily: process.env.AWS_TASK_DEFINITION_FAMILY || 'mcp-server-task',
-  executionRoleArn: process.env.AWS_EXECUTION_ROLE_ARN || '',
-  taskRoleArn: process.env.AWS_TASK_ROLE_ARN || '',
+  taskDefinitionFamily: 'mcp-server-task',
   containerPort: 8000,  // Default port for MCP servers
   cpu: '512',  // 0.5 vCPU
   memory: '1024', // 1GB RAM
   assignPublicIp: AssignPublicIp.ENABLED as AssignPublicIp, // We need to connect to the server from outside
-  validationStateMachineArn: process.env.VALIDATION_STATE_MACHINE_ARN || '',
 };
 
-// Create ECS client
-const ecsClient = new ECSClient({ region: DEFAULT_CONFIG.region });
+// Create ECS client with region from environment (will be the same as SSM client)
+const ecsClient = new ECSClient({ region: process.env.AWS_REGION || 'us-east-1' });
 
 // CloudWatch Logs client
-const logsClient = new CloudWatchLogsClient({ region: DEFAULT_CONFIG.region });
+const logsClient = new CloudWatchLogsClient({ region: process.env.AWS_REGION || 'us-east-1' });
 
 // Step Functions client
-const sfnClient = new SFNClient({ region: DEFAULT_CONFIG.region });
+const sfnClient = new SFNClient({ region: process.env.AWS_REGION || 'us-east-1' });
+
+// Cached configuration to avoid repeated fetches
+let cachedConfig: {
+  cluster?: string;
+  ecsClusterName?: string;
+  subnets?: string[];
+  securityGroups?: string[];
+  executionRoleArn?: string;
+  taskRoleArn?: string;
+  stateMachineArn?: string;
+} | null = null;
+
+/**
+ * Get the Fargate configuration - combines network and validation configs
+ */
+async function getFargateConfig() {
+  if (cachedConfig) return cachedConfig;
+  
+  try {
+    // Load network and validation config 
+    const [networkConfig, validationConfig] = await Promise.all([
+      getNetworkConfig(),
+      getValidationConfig()
+    ]);
+    
+    cachedConfig = {
+      cluster: validationConfig.ecsClusterName,
+      ecsClusterName: validationConfig.ecsClusterName,
+      subnets: networkConfig.subnets,
+      securityGroups: networkConfig.securityGroupId ? [networkConfig.securityGroupId] : [],
+      executionRoleArn: process.env.AWS_EXECUTION_ROLE_ARN || '', // Still use env var for these roles
+      taskRoleArn: process.env.AWS_TASK_ROLE_ARN || '',
+      stateMachineArn: validationConfig.stateMachineArn
+    };
+    
+    // Log the configuration
+    console.log('Loaded Fargate configuration:', {
+      cluster: cachedConfig.cluster,
+      subnetCount: cachedConfig.subnets?.length || 0,
+      securityGroupCount: cachedConfig.securityGroups?.length || 0,
+      stateMachineArn: cachedConfig.stateMachineArn ? 'present' : 'missing'
+    });
+    
+    return cachedConfig;
+  } catch (error) {
+    console.error('Error loading Fargate configuration:', error);
+    
+    // Fallback to environment variables as last resort
+    return {
+      cluster: process.env.AWS_ECS_CLUSTER || 'ToolShedCluster',
+      ecsClusterName: process.env.AWS_ECS_CLUSTER || 'ToolShedCluster',
+      subnets: process.env.AWS_SUBNETS ? process.env.AWS_SUBNETS.split(',') : [],
+      securityGroups: process.env.AWS_SECURITY_GROUP_ID ? [process.env.AWS_SECURITY_GROUP_ID] : [],
+      executionRoleArn: process.env.AWS_EXECUTION_ROLE_ARN || '',
+      taskRoleArn: process.env.AWS_TASK_ROLE_ARN || '',
+      stateMachineArn: process.env.VALIDATION_STATE_MACHINE_ARN || process.env.AWS_STATE_MACHINE_ARN || ''
+    };
+  }
+}
 
 /**
  * Wait for a task to reach a running state with adequate retries
@@ -65,6 +114,7 @@ async function waitForTask(
   error?: string;
 }> {
   let attempts = 0;
+  const config = await getFargateConfig();
   
   while (attempts < maxAttempts) {
     attempts++;
@@ -72,7 +122,7 @@ async function waitForTask(
     
     try {
       const describeTasksCommand = new DescribeTasksCommand({
-        cluster: DEFAULT_CONFIG.cluster,
+        cluster: config.cluster,
         tasks: [taskArn]
       });
       
@@ -149,12 +199,14 @@ async function waitForTask(
  * @param {number} containerPort - Port the container exposes
  * @returns {Promise<string>} - Task definition ARN or family:revision
  */
-async function ensureTaskDefinition(
+export async function ensureTaskDefinition(
   image: string,
   containerName: string,
   containerPort: number
 ): Promise<string> {
   try {
+    const config = await getFargateConfig();
+    
     // Try to describe the task definition
     const describeTaskDefCommand = new DescribeTaskDefinitionCommand({
       taskDefinition: DEFAULT_CONFIG.taskDefinitionFamily
@@ -179,8 +231,8 @@ async function ensureTaskDefinition(
       networkMode: 'awsvpc',
       cpu: DEFAULT_CONFIG.cpu,
       memory: DEFAULT_CONFIG.memory,
-      executionRoleArn: DEFAULT_CONFIG.executionRoleArn || undefined, // Make this optional
-      taskRoleArn: DEFAULT_CONFIG.taskRoleArn || undefined, // Make this optional
+      executionRoleArn: config.executionRoleArn || undefined, // Make this optional
+      taskRoleArn: config.taskRoleArn || undefined, // Make this optional
       containerDefinitions: [
         {
           name: containerName,
@@ -200,7 +252,7 @@ async function ensureTaskDefinition(
               logDriver: 'awslogs',
               options: {
                 'awslogs-group': `/ecs/${DEFAULT_CONFIG.taskDefinitionFamily}`,
-                'awslogs-region': DEFAULT_CONFIG.region,
+                'awslogs-region': process.env.AWS_REGION || 'us-east-1',
                 'awslogs-stream-prefix': 'ecs',
                 'awslogs-create-group': 'true'  // Auto-create the log group if it doesn't exist
               }
@@ -277,14 +329,16 @@ export async function startServerValidation(
   error?: string;
 }> {
   try {
+    const config = await getFargateConfig();
+    
     // Check if we're in development mode without proper config
     const isDevelopment = process.env.NODE_ENV === 'development';
     
     // Validate required configuration
-    if (!DEFAULT_CONFIG.validationStateMachineArn) {
+    if (!config.stateMachineArn) {
       // In development, provide a helpful message but don't fail hard
       if (isDevelopment) {
-        console.warn("Development environment: VALIDATION_STATE_MACHINE_ARN is not defined");
+        console.warn("Development environment: State Machine ARN is not defined");
         return {
           success: true,
           executionArn: `dev-mock-execution-arn-${Date.now()}`,
@@ -294,7 +348,7 @@ export async function startServerValidation(
       
       return {
         success: false,
-        error: "Missing required configuration: VALIDATION_STATE_MACHINE_ARN environment variable is not defined"
+        error: "Missing required configuration: State Machine ARN is not defined in SSM or environment variables"
       };
     }
 
@@ -309,10 +363,10 @@ export async function startServerValidation(
     };
 
     console.log(`Starting validation pipeline for server ${server.ServerId}`);
-    console.log(`Using state machine: ${DEFAULT_CONFIG.validationStateMachineArn}`);
+    console.log(`Using state machine: ${config.stateMachineArn}`);
     
     // In development mode with placeholder ARN, return mock success
-    if (isDevelopment && DEFAULT_CONFIG.validationStateMachineArn.includes('123ABC')) {
+    if (isDevelopment && config.stateMachineArn.includes('123ABC')) {
       console.warn("Development environment: Using placeholder State Machine ARN");
       return {
         success: true,
@@ -323,7 +377,7 @@ export async function startServerValidation(
     
     // Start the Step Function execution
     const startCommand = new StartExecutionCommand({
-      stateMachineArn: DEFAULT_CONFIG.validationStateMachineArn,
+      stateMachineArn: config.stateMachineArn,
       input: JSON.stringify(input),
       name: `Validation-${server.ServerId.replace(/[^a-zA-Z0-9-_]/g, '-')}-${Date.now()}`
     });
@@ -474,8 +528,9 @@ export async function stopContainer(
   error?: string;
 }> {
   try {
+    const config = await getFargateConfig();
     const stopTaskCommand = new StopTaskCommand({
-      cluster: DEFAULT_CONFIG.cluster,
+      cluster: config.cluster,
       task: taskArn,
       reason
     });
@@ -507,8 +562,49 @@ export async function checkContainerStatus(
   error?: string;
 }> {
   try {
+    // Check if this is a Step Functions execution ARN instead of an ECS task ARN
+    if (taskArn.includes(':states:') && taskArn.includes(':execution:')) {
+      return {
+        running: false,
+        status: 'PENDING',
+        error: 'Cannot check Step Functions execution as a Fargate task. Use getValidationStatus instead.'
+      };
+    }
+
+    // Enhanced validation for task ARN format
+    // Valid formats:
+    // - arn:aws:ecs:<region>:<account>:task/<cluster-name>/<task-id> (36 or 32 chars)
+    if (!taskArn || typeof taskArn !== 'string') {
+      return {
+        running: false,
+        status: 'INVALID',
+        error: 'Missing or invalid task ARN'
+      };
+    }
+
+    // Check for correct ARN format
+    if (!taskArn.startsWith('arn:aws:ecs:')) {
+      return {
+        running: false,
+        status: 'INVALID',
+        error: 'Not a valid ECS task ARN'
+      };
+    }
+
+    // Extract task ID from the end of the ARN and validate its format
+    const taskIdMatch = taskArn.match(/\/([a-f0-9]{32}|[a-f0-9-]{36})$/);
+    if (!taskIdMatch) {
+      console.error(`Invalid task ID format in ARN: ${taskArn}`);
+      return {
+        running: false,
+        status: 'INVALID',
+        error: 'Invalid task ID format. Expected 32 or 36 character ID.'
+      };
+    }
+
+    const config = await getFargateConfig();
     const describeTasksCommand = new DescribeTasksCommand({
-      cluster: DEFAULT_CONFIG.cluster,
+      cluster: config.cluster,
       tasks: [taskArn]
     });
 

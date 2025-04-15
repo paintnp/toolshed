@@ -1,0 +1,138 @@
+[
+    {
+        "imageDigest": "sha256:ef5c0d0cc86e8dbf57112a5f70fe4c6c8f3a92cab9b0ee151c06db55c3086317",
+        "imageTag": "github-github-mcp-server-20250411215539"
+    },
+    {
+        "imageDigest": "sha256:f5f6d6c83cf84523eaa48c747085b5607b66e8b02b72c38d7105071fd27b8a6e",
+        "imageTag": "github-github-mcp-server-20250411220255"
+    },
+    {
+        "imageDigest": "sha256:e221bbb142a1dedf3f9be89a908a37adba2781e0af4f8b87aca88bb720fbf927",
+        "imageTag": "github-github-mcp-server-20250411180905"
+    },
+    {
+        "imageDigest": "sha256:7a5a5384a42796727540d39e57f98b76eccbdc492b94a3cb06b050fa4004810e",
+        "imageTag": "github-github-mcp-server-20250412160419"
+    },
+    {
+        "imageDigest": "sha256:ffa372fa527a1d97ce3fb6bb383b4ad9e1ed6dc4f3310de9033a9df14255d462",
+        "imageTag": "github-github-mcp-server-20250412144216"
+    },
+    {
+        "imageDigest": "sha256:27cc446876b87d5a90a8bfbab54a1902d4e3fccc65ed2d13ae2a0020bc7bbeca",
+        "imageTag": "github-github-mcp-server-20250411230653"
+    },
+    {
+        "imageDigest": "sha256:22eb7b5d707da587a8075d5432712f3c1581b1ee9195c59060f2a024c990f5ca",
+        "imageTag": "github-github-mcp-server-20250411225747"
+    },
+    {
+        "imageDigest": "sha256:a2d70f71d37a11b19ae8d7cdac8548310f916b438758a34bbdf32fe6f7bb7f2e",
+        "imageTag": "github-github-mcp-server-20250411162330"
+    },
+    {
+        "imageDigest": "sha256:a21691e6ad0661b1a8e1af1c11274205d3fe6b44f34599599f295c021e4e46b8",
+        "imageTag": "github-github-mcp-server-20250412154452"
+    },
+    {
+        "imageDigest": "sha256:beed3eab0a3b6ef36792c96bfebc3a22ba094858fe0cbf9b2cd2e7043ada6254",
+        "imageTag": "github-github-mcp-server-20250411205104"
+    },
+    {
+        "imageDigest": "sha256:edae23d1119361aa1a1e6be61548e570ceca8fdd8d1ae22edeca3c0961927baa",
+        "imageTag": "github-github-mcp-server-20250411180316"
+    },
+    {
+        "imageDigest": "sha256:2c620a2f0795e89974d2ad425f2ad10e8c4256fd26998b4f9d9baa725c6b9eab",
+        "imageTag": "github-github-mcp-server-20250411164019"
+    },
+    {
+        "imageDigest": "sha256:ad261197fe75568e2a1518825a2316a6e0fd950e62bdcdf26aebcf875ef06b81",
+        "imageTag": "github-github-mcp-server-20250411163807"
+    },
+    {
+        "imageDigest": "sha256:1aaf5f73fd57f48a24841fb973780b0547d1593b8be901f5bb6552aed752bb31",
+        "imageTag": "github-github-mcp-server-20250411231313"
+    },
+    {
+        "imageDigest": "sha256:aaf4997e27257f9c24934259d3bb0ce5afbb11df0d8e1728e25927f1ecf1afcc",
+        "imageTag": "github-github-mcp-server-20250411002947"
+    },
+    {
+        "imageDigest": "sha256:c9fd23d9281ebf08cec073339371d761f2207f239c0c8445e828806b25bd7e92",
+        "imageTag": "github-github-mcp-server-20250412102742"
+    },
+    {
+        "imageDigest": "sha256:4a0cbda0649dfff9571f58d9365146e6e0c24464a20a47ff5d44de2899e67543",
+        "imageTag": "github-github-mcp-server-20250411230151"
+    },
+    {
+        "imageDigest": "sha256:d5457fc16aaa58342549312168e8c9b2788c6e30846adb218203258484a36b98",
+        "imageTag": "github-github-mcp-server-20250411165439"
+    },
+    {
+        "imageDigest": "sha256:90c4e56cddb294c5edb1984239507c48bbae3fbee5a279cf30337cf20d9448eb",
+        "imageTag": "github-github-mcp-server-20250412161107"
+    },
+    {
+        "imageDigest": "sha256:7573f3cb8f05f937081705b2507fc0013d197463e443046bd19c79c6f41269eb",
+        "imageTag": "github-github-mcp-server-20250411214029"
+    },
+    {
+        "imageDigest": "sha256:23c492aab0b04c715563349fb7927ec9d6ae8156cbdacc0c2baa2af35bbc433b",
+        "imageTag": "github-github-mcp-server-20250412154451"
+    },
+    {
+        "imageDigest": "sha256:466f28e9bebe0b33b161521f8210069c79d9320703d8f1e50d6267cd9b960584",
+        "imageTag": "github-github-mcp-server-20250412183044"
+    },
+    {
+        "imageDigest": "sha256:466f28e9bebe0b33b161521f8210069c79d9320703d8f1e50d6267cd9b960584",
+        "imageTag": "latest"
+    },
+    {
+        "imageDigest": "sha256:72426fc19bab263d2907fe5a4d7c9d2c7a266bff8ad80f496d73a9a8714a70c8",
+        "imageTag": "github-github-mcp-server-20250412155647"
+    },
+    {
+        "imageDigest": "sha256:b9beead32ad3614f84a7d5a2d88daa29dd216d835f48539bb87f35af66fd93dc",
+        "imageTag": "github-github-mcp-server-20250411224947"
+    },
+    {
+        "imageDigest": "sha256:0cf41b80672b8d2d190da0292ab9dd12ba0a1607dde45fb0b21962c2c14695e7",
+        "imageTag": "github-github-mcp-server-20250411170614"
+    },
+    {
+        "imageDigest": "sha256:ff682da7deccc3b0497d9f5b065442fed2ba253b4b1e375518ef42d48552b2f8",
+        "imageTag": "github-github-mcp-server-20250411164251"
+    },
+    {
+        "imageDigest": "sha256:315dcf48ed594875f1fde692e47961371c19b1fe46588debe98ae9ebfd4c5347",
+        "imageTag": "github-github-mcp-server-20250411003826"
+    },
+    {
+        "imageDigest": "sha256:6389f6a99f0ec4bdbfe9f9f6985f5d2fa6060f19ab4afe8ae5d8eee42d4da593",
+        "imageTag": "github-github-mcp-server-20250411224431"
+    },
+    {
+        "imageDigest": "sha256:10dff38d43990430c0bd2508fc7f9177c7f2dbca8b3520fb6ea6851526287ae6",
+        "imageTag": "github-github-mcp-server-20250411175926"
+    },
+    {
+        "imageDigest": "sha256:09f9b230ce91f1abbc282cf527925db6885c9c62d9a143d06300e8cdd567589d",
+        "imageTag": "github-github-mcp-server-20250411213747"
+    },
+    {
+        "imageDigest": "sha256:c250e7f078e5dcbdc8f8290e783d705aac3d7135a3db58a807982fda63633554",
+        "imageTag": "github-github-mcp-server-20250411164945"
+    },
+    {
+        "imageDigest": "sha256:e7b71c5e48a508a3f2a21f678cf2baf68209abaa31a604126ab0dd753db77caa",
+        "imageTag": "github-github-mcp-server-20250411232814"
+    },
+    {
+        "imageDigest": "sha256:fdcdb41dc63afcb914436ec09776f9a5f5ad9dcfe728ae3589c28d14d7099c17",
+        "imageTag": "github-github-mcp-server-20250412155644"
+    }
+]

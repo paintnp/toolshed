@@ -10,6 +10,7 @@ import * as sfn from 'aws-cdk-lib/aws-stepfunctions';
 import * as tasks from 'aws-cdk-lib/aws-stepfunctions-tasks';
 import * as logs from 'aws-cdk-lib/aws-logs';
 import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
+import * as ssm from 'aws-cdk-lib/aws-ssm';
 import * as path from 'path';
 
 export interface ValidationPipelineStackProps extends cdk.StackProps {
@@ -64,15 +65,21 @@ export class ValidationPipelineStack extends cdk.Stack {
     }
 
     // 1. ECR Repository for MCP Server Images
-    const repository = new ecr.Repository(this, 'MCPServerRepo', {
-      repositoryName: 'toolshed-mcp-servers-v2',
-      lifecycleRules: [
-        {
-          description: 'Keep only the last 100 images',
-          maxImageCount: 100,
-          rulePriority: 1,
-        },
-      ],
+    // Use repository lookup to avoid creation errors if it already exists
+    const repositoryName = 'toolshed-mcp-servers-v2';
+    
+    // Always use fromRepositoryName to reference an existing repository
+    // This means the repository must be created manually before deploying if it doesn't exist
+    const repository = ecr.Repository.fromRepositoryName(
+      this, 
+      'MCPServerRepo', 
+      repositoryName
+    );
+    
+    // Add a CfnOutput to indicate we're using an existing repository
+    new cdk.CfnOutput(this, 'ECRRepository', {
+      value: repositoryName,
+      description: 'ECR repository used for MCP server images'
     });
     
     // 2. GitHub Secret
@@ -134,14 +141,11 @@ export class ValidationPipelineStack extends cdk.Stack {
               'REPO_URL=$(echo $CODEBUILD_INITIATOR | cut -d/ -f2)',
               'REPO_NAME=$(echo $REPO_URL | cut -d@ -f1)',
               'echo "Original repository name: $ORIGINAL_REPOSITORY_NAME"',
-              'TIMESTAMP=$(date +%Y%m%d%H%M%S)',
+              'echo "Using execution ID: $EXECUTION_ID"',
               'echo "Create a sanitized image tag name (replace slashes with dashes)"',
               'SANITIZED_REPO_NAME=$(echo $REPOSITORY_NAME | tr "/" "-")',
-              'echo "Use timestamp as fallback if CODEBUILD_RESOLVED_SOURCE_VERSION is empty"',
-              'SOURCE_VERSION=${CODEBUILD_RESOLVED_SOURCE_VERSION:-$TIMESTAMP}',
-              'echo "Important: Do not include a colon in IMAGE_TAG as it will be used in $REPOSITORY_URI:$IMAGE_TAG"',
-              'IMAGE_TAG="${SANITIZED_REPO_NAME}-${SOURCE_VERSION}"',
-              'echo "Using image tag: $IMAGE_TAG"',
+              'IMAGE_TAG="${SANITIZED_REPO_NAME}-${EXECUTION_ID}"',
+              'echo "Using stable image tag: $IMAGE_TAG"',
               'export IMAGE_TAG',
               'echo "Source commit SHA: $CODEBUILD_RESOLVED_SOURCE_VERSION"'
             ]
@@ -222,6 +226,18 @@ export class ValidationPipelineStack extends cdk.Stack {
     // Give the execution role permissions to pull from ECR
     repository.grantPull(executionRole);
     
+    // Add CloudWatch Logs permissions for creating log groups
+    executionRole.addToPolicy(
+      new iam.PolicyStatement({
+        actions: [
+          'logs:CreateLogGroup',
+          'logs:CreateLogStream',
+          'logs:PutLogEvents'
+        ],
+        resources: ['*']
+      })
+    );
+    
     // 7. Lambda Function for Validation
     const validationFunction = new lambda.Function(this, 'ValidationFunction', {
       functionName: 'ToolShed-MCP-Server-Validation',
@@ -254,9 +270,50 @@ export class ValidationPipelineStack extends cdk.Stack {
       })
     );
     
+    // Store configuration in SSM Parameter Store for the playground functionality
+    // These parameters will be accessed by the playground API
+    new ssm.StringParameter(this, 'PlaygroundClusterParam', {
+      parameterName: '/toolshed/playground/cluster',
+      stringValue: cluster.clusterName,
+      description: 'ECS Cluster for ToolShed Playground',
+    });
+    
+    new ssm.StringParameter(this, 'PlaygroundExecutionRoleParam', {
+      parameterName: '/toolshed/playground/executionRoleArn',
+      stringValue: executionRole.roleArn,
+      description: 'Execution Role ARN for ToolShed Playground',
+    });
+    
+    new ssm.StringParameter(this, 'PlaygroundSecurityGroupParam', {
+      parameterName: '/toolshed/playground/securityGroup',
+      stringValue: securityGroup.securityGroupId,
+      description: 'Security Group ID for ToolShed Playground',
+    });
+    
+    // Store all available public subnets
+    const publicSubnets = vpc.publicSubnets.map(subnet => subnet.subnetId);
+    new ssm.StringParameter(this, 'PlaygroundSubnetsParam', {
+      parameterName: '/toolshed/playground/subnets',
+      stringValue: publicSubnets.join(','),
+      description: 'Public Subnet IDs for ToolShed Playground',
+    });
+    
     // 8. Step Functions State Machine
     
-    // 8.1 CodeBuild Task
+    // 8.0 Initialization step to extract execution ID for tagging
+    const initializeStep = new sfn.Pass(this, 'InitializeValidation', {
+      parameters: {
+        'serverId.$': '$.serverId',
+        'repositoryName.$': '$.repositoryName',
+        'originalRepositoryName.$': '$.originalRepositoryName',
+        // Use a simplified approach with the execution name as the tag
+        'executionName': sfn.JsonPath.stringAt('$$.Execution.Name'),
+        // Create a simple execution ID by using just the execution name
+        'executionId': sfn.JsonPath.stringAt('$$.Execution.Name')
+      }
+    });
+    
+    // 8.1 CodeBuild Task (updated to use execution ID)
     const buildTask = new tasks.CodeBuildStartBuild(this, 'BuildMCPServerImage', {
       project: buildProject,
       integrationPattern: sfn.IntegrationPattern.RUN_JOB,
@@ -272,6 +329,11 @@ export class ValidationPipelineStack extends cdk.Stack {
         SERVER_ID: {
           value: sfn.JsonPath.stringAt('$.serverId'),
           type: codebuild.BuildEnvironmentVariableType.PLAINTEXT,
+        },
+        // Pass the execution ID to use as a stable tag
+        EXECUTION_ID: {
+          value: sfn.JsonPath.stringAt('$.executionId'),
+          type: codebuild.BuildEnvironmentVariableType.PLAINTEXT,
         }
       },
       resultPath: '$.buildResult',
@@ -284,10 +346,11 @@ export class ValidationPipelineStack extends cdk.Stack {
       runtime: lambda.Runtime.NODEJS_18_X,
       handler: 'index.handler',
       code: lambda.Code.fromInline(`
+        const { S3Client, GetObjectCommand } = require('@aws-sdk/client-s3');
+        
         exports.handler = async (event) => {
           console.log('Input event:', JSON.stringify(event, null, 2));
           
-          // Construct the image URI from the available information
           let imageUri;
           let imageTag;
           let lastVerifiedSha;
@@ -298,42 +361,70 @@ export class ValidationPipelineStack extends cdk.Stack {
             if (event.buildResult?.Build) {
               const build = event.buildResult.Build;
               
-              // Get repository URI from environment variables
-              const repoUri = build.Environment.EnvironmentVariables
-                .find(v => v.Name === 'REPOSITORY_URI')?.Value;
-              
-              // Get repository name and server ID 
-              const repoName = build.Environment.EnvironmentVariables
-                .find(v => v.Name === 'REPOSITORY_NAME')?.Value;
-              
-              // Get commit SHA from source version (if available)
-              lastVerifiedSha = build.SourceVersion || null;
-              
-              // Get the timestamp from the build logs or buildNumber as fallback
-              const buildNumber = build.BuildNumber.toString().padStart(3, '0');
-              const timestamp = build.StartTime ? 
-                new Date(build.StartTime).toISOString()
-                  .replace(/[-:]/g, '')
-                  .replace('T', '')
-                  .replace(/\\..+/, '') : 
-                new Date().toISOString()
-                  .replace(/[-:]/g, '')
-                  .replace('T', '')
-                  .replace(/\\..+/, '');
-              
-              // Construct the image tag using the sanitized repo name and timestamp
-              if (repoName && repoUri) {
-                const sanitizedRepoName = repoName.replace(/\\//g, '-');
-                // Use the buildNumber to ensure uniqueness
-                imageTag = \`\${sanitizedRepoName}-\${timestamp}-\${buildNumber}\`;
-                imageUri = \`\${repoUri}:\${imageTag}\`;
-                console.log('Constructed image URI:', imageUri);
-                console.log('Image tag:', imageTag);
-                console.log('Last verified SHA:', lastVerifiedSha);
+              // Get information from the build artifacts, which contain the actual image URI used
+              const artifactLocation = build.Artifacts?.Location;
+              if (!artifactLocation) {
+                console.log('No artifact location found in build result');
+                
+                // Fall back to previous method if we can't find the artifacts
+                return await fallbackToGeneratingImageUri(event);
               }
+              
+              // Parse S3 location
+              // Format: bucket/path/to/artifact.zip
+              const s3Path = artifactLocation.replace('s3://', '').split('/');
+              const bucketName = s3Path[0];
+              const objectKey = s3Path.slice(1).join('/');
+              
+              console.log('Artifact location:', artifactLocation);
+              console.log('Bucket name:', bucketName);
+              console.log('Object key:', objectKey);
+              
+              // Set up S3 client
+              const s3Client = new S3Client();
+              
+              // Define the paths to the artifact files
+              const imageDefinitionKey = objectKey.endsWith('/') 
+                ? \`\${objectKey}imageDefinition.json\` 
+                : \`\${objectKey}/imageDefinition.json\`;
+                
+              // Get the image definition file from S3
+              try {
+                const imageDefinitionResponse = await s3Client.send(
+                  new GetObjectCommand({
+                    Bucket: bucketName,
+                    Key: imageDefinitionKey
+                  })
+                );
+                
+                // Read and parse the image definition
+                const imageDefinitionData = await streamToString(imageDefinitionResponse.Body);
+                const imageDefinition = JSON.parse(imageDefinitionData);
+                
+                console.log('Image definition:', imageDefinition);
+                
+                // Extract image information from the definition
+                imageUri = imageDefinition.imageUri;
+                imageTag = imageUri.split(':')[1]; // Extract tag from URI
+                serverId = imageDefinition.serverId || serverId;
+                
+                // Get SHA from build if available
+                lastVerifiedSha = build.SourceVersion || null;
+                
+                console.log('Extracted from artifacts - Image URI:', imageUri);
+                console.log('Extracted from artifacts - Image tag:', imageTag);
+                console.log('Server ID:', serverId);
+              } catch (s3Error) {
+                console.error('Error getting image definition from S3:', s3Error);
+                // Fall back to the old method if we can't get the file
+                return await fallbackToGeneratingImageUri(event);
+              }
+            } else {
+              console.log('No build information in event, falling back to old method');
+              return await fallbackToGeneratingImageUri(event);
             }
             
-            // Error if we couldn't determine the image URI
+            // If we still don't have an image URI, throw an error
             if (!imageUri) {
               throw new Error('Could not determine image URI from build output. Check CodeBuild logs for more details.');
             }
@@ -348,6 +439,86 @@ export class ValidationPipelineStack extends cdk.Stack {
             console.error('Error extracting image URI:', error);
             throw error;
           }
+        };
+        
+        // Helper function to convert stream to string
+        async function streamToString(stream) {
+          const chunks = [];
+          return new Promise((resolve, reject) => {
+            stream.on('data', (chunk) => chunks.push(Buffer.from(chunk)));
+            stream.on('error', reject);
+            stream.on('end', () => resolve(Buffer.concat(chunks).toString('utf-8')));
+          });
+        }
+        
+        // Fallback to the old method of generating image URI from build information
+        async function fallbackToGeneratingImageUri(event) {
+          console.log('Using fallback method to generate image URI');
+          
+          let imageUri;
+          let imageTag;
+          let lastVerifiedSha;
+          let serverId = event.serverId;
+          
+          if (event.buildResult?.Build) {
+            const build = event.buildResult.Build;
+            
+            // Get repository URI from environment variables
+            const repoUri = build.Environment.EnvironmentVariables
+              .find(v => v.Name === 'REPOSITORY_URI')?.Value;
+            
+            // Get repository name and server ID 
+            const repoName = build.Environment.EnvironmentVariables
+              .find(v => v.Name === 'REPOSITORY_NAME')?.Value;
+            
+            // Get execution ID from environment variables (added in buildTask)
+            const executionId = build.Environment.EnvironmentVariables
+              .find(v => v.Name === 'EXECUTION_ID')?.Value;
+            
+            // Get commit SHA from source version (if available)
+            lastVerifiedSha = build.SourceVersion || null;
+            
+            // Prioritize using the execution ID over timestamp
+            if (repoName && repoUri) {
+              const sanitizedRepoName = repoName.replace(/\\//g, '-');
+              
+              if (executionId) {
+                // Use the execution ID as the stable identifier
+                imageTag = \`\${sanitizedRepoName}-\${executionId}\`;
+                console.log('Using execution ID for image tag:', imageTag);
+              } else {
+                // Fallback to timestamp only if execution ID is not available
+                const timestamp = build.StartTime ? 
+                  new Date(build.StartTime).toISOString()
+                    .replace(/[-:]/g, '')
+                    .replace('T', '')
+                    .replace(/\\..+/, '') : 
+                  new Date().toISOString()
+                    .replace(/[-:]/g, '')
+                    .replace('T', '')
+                    .replace(/\\..+/, '');
+                
+                imageTag = \`\${sanitizedRepoName}-\${timestamp}\`;
+                console.log('Fallback to timestamp for image tag:', imageTag);
+              }
+              
+              imageUri = \`\${repoUri}:\${imageTag}\`;
+              console.log('Constructed image URI:', imageUri);
+              console.log('Image tag:', imageTag);
+              console.log('Last verified SHA:', lastVerifiedSha);
+            }
+          }
+          
+          if (!imageUri) {
+            throw new Error('Could not determine image URI from build output, even with fallback method.');
+          }
+          
+          return {
+            imageUri,
+            imageTag,
+            lastVerifiedSha,
+            serverId
+          };
         }
       `),
       timeout: cdk.Duration.seconds(30)
@@ -456,7 +627,9 @@ export class ValidationPipelineStack extends cdk.Stack {
         serverId: sfn.JsonPath.stringAt('$.serverId'),
         endpoint: sfn.JsonPath.stringAt('$.taskDescription.Tasks[0].Attachments[0].Details[?(@.Name == "networkConfiguration")].Value.NetworkInterfaces[0].PublicIp'),
         taskArn: sfn.JsonPath.stringAt('$.taskDescription.Tasks[0].TaskArn'),
-        imageDetails: sfn.JsonPath.objectAt('$.imageDetails')
+        imageDetails: sfn.JsonPath.objectAt('$.imageDetails'),
+        // Store the executionArn for status checks
+        executionArn: sfn.JsonPath.stringAt('$$.Execution.Id'),
       }),
       resultPath: '$.validationResult',
     });
@@ -497,8 +670,9 @@ export class ValidationPipelineStack extends cdk.Stack {
       error: 'ServerValidationError',
     });
     
-    // 8.7 Define Workflow - Modified to include the register task step and wait state
-    const definition = buildTask
+    // 8.7 Define Workflow - Modified to include the initialization step
+    const definition = initializeStep
+      .next(buildTask)
       .next(parseImageUri)
       .next(registerTask)     // Register dynamic task definition
       .next(runContainerTask) // Run the ECS task with new task definition

@@ -88,3 +88,54 @@ aws stepfunctions start-execution \
 - The Lambda function uses DynamoDB to store validation results
 - The pipeline cleans up resources (stops containers) automatically
 - Update the code in `cdk/lambda/validation.ts` to change validation logic 
+
+# Infrastructure Setup and Management
+
+This directory contains the AWS CDK code for setting up the ToolShed infrastructure, including the validation pipeline and playground environments.
+
+## Stack Outputs
+
+When you deploy the CDK stacks, they produce several outputs that are used by the application. These include:
+
+- Cluster ARNs
+- Repository names and URIs
+- Security group IDs
+- Subnet IDs
+- State machine ARNs
+
+## Storing Outputs in Parameter Store
+
+After deploying the stacks, you should store the outputs in AWS Systems Manager Parameter Store for use by the application. A script is provided to automate this:
+
+```bash
+# Install dependencies
+npm install @aws-sdk/client-ssm
+
+# Make the script executable
+chmod +x store-stack-outputs.js
+
+# Run the script
+node store-stack-outputs.js
+```
+
+This script will store all necessary parameters in SSM Parameter Store with the following path structure:
+
+- `/toolshed/validation/*` - Validation pipeline parameters
+- `/toolshed/playground/*` - Playground parameters
+
+## Environment Variables
+
+For local development, you can also store these values in your `.env.local` file:
+
+```
+AWS_CLUSTER_ARN=arn:aws:ecs:us-east-1:277502524328:cluster/ToolShed-Validation-Cluster
+AWS_ECR_REPOSITORY=toolshed-mcp-servers-v2
+AWS_ECR_REPOSITORY_URI=277502524328.dkr.ecr.us-east-1.amazonaws.com/toolshed-mcp-servers-v2
+AWS_STATE_MACHINE_ARN=arn:aws:states:us-east-1:277502524328:stateMachine:ToolShed-MCP-Server-Validation-Pipeline
+AWS_SECURITY_GROUP_ID=sg-0d9310075aac2bc60
+AWS_SUBNETS=subnet-02dc88f8641a3502b,subnet-09e525f61b309b43e
+```
+
+## Updating Parameters
+
+If you redeploy the stacks and obtain new output values, update the `store-stack-outputs.js` script with the new values and run it again. The script uses the `Overwrite: true` flag, so it will update existing parameters. 

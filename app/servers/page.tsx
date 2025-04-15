@@ -14,9 +14,10 @@ async function getServers() {
     
     console.log(`Fetching servers from ${origin}/api/servers`);
     
-    const res = await fetch(`${origin}/api/servers`, { 
-      // Cache for 1 hour
-      next: { revalidate: 3600 }
+    const res = await fetch(`${origin}/api/servers?t=${Date.now()}`, { 
+      // Disable caching temporarily
+      next: { revalidate: 0 },
+      cache: 'no-store'
     });
     
     if (!res.ok) {
